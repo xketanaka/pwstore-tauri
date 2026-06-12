@@ -61,3 +61,46 @@ pub fn decrypt(data: &[u8], passphrase: &str) -> Result<Vec<u8>, String> {
         .decrypt(nonce, ciphertext)
         .map_err(|_| "復号に失敗しました。パスフレーズが違うか、データが壊れています。".to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encrypt_decrypt_roundtrip() {
+        let plaintext = b"hello, pwstore!";
+        let passphrase = "test-passphrase";
+        let encrypted = encrypt(plaintext, passphrase).unwrap();
+        let decrypted = decrypt(&encrypted, passphrase).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn encrypt_produces_different_ciphertext_each_time() {
+        let plaintext = b"same plaintext";
+        let passphrase = "same-pass";
+        let a = encrypt(plaintext, passphrase).unwrap();
+        let b = encrypt(plaintext, passphrase).unwrap();
+        // salt と nonce がランダムなので毎回異なる
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn decrypt_wrong_passphrase_returns_error() {
+        let encrypted = encrypt(b"secret", "correct-pass").unwrap();
+        assert!(decrypt(&encrypted, "wrong-pass").is_err());
+    }
+
+    #[test]
+    fn decrypt_truncated_data_returns_error() {
+        assert!(decrypt(&[0u8; 10], "pass").is_err());
+    }
+
+    #[test]
+    fn decrypt_tampered_data_returns_error() {
+        let mut encrypted = encrypt(b"secret", "pass").unwrap();
+        let last = encrypted.last_mut().unwrap();
+        *last ^= 0xFF; // 末尾1バイトを反転（認証タグを壊す）
+        assert!(decrypt(&encrypted, "pass").is_err());
+    }
+}

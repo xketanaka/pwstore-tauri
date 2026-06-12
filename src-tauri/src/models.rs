@@ -105,6 +105,96 @@ impl From<FlatEntry> for Entry {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_flat(id: u32) -> FlatEntry {
+        FlatEntry {
+            id,
+            service_name: "AWS".to_string(),
+            account: "alice".to_string(),
+            password: "pass".to_string(),
+            status: 1,
+            keyword: "cloud".to_string(),
+            category: "biz".to_string(),
+            extra1_key_name: Some("email".to_string()),
+            extra1_value: Some("alice@example.com".to_string()),
+            extra1_encrypted: Some(false),
+            extra2_key_name: Some("token".to_string()),
+            extra2_value: Some("secret-token".to_string()),
+            extra2_encrypted: Some(true),
+            extra3_key_name: None,
+            extra3_value: None,
+            extra3_encrypted: None,
+        }
+    }
+
+    #[test]
+    fn flat_to_entry_converts_extra_fields() {
+        let entry: Entry = sample_flat(1).into();
+        assert_eq!(entry.id, 1);
+        assert_eq!(entry.extra_fields.len(), 2);
+        assert_eq!(entry.extra_fields[0].key_name, "email");
+        assert!(!entry.extra_fields[0].encrypted);
+        assert_eq!(entry.extra_fields[1].key_name, "token");
+        assert!(entry.extra_fields[1].encrypted);
+    }
+
+    #[test]
+    fn flat_to_entry_skips_empty_key_name() {
+        let mut flat = sample_flat(1);
+        flat.extra1_key_name = Some("".to_string());
+        flat.extra1_value = Some("value".to_string());
+        let entry: Entry = flat.into();
+        // key_name が空のフィールドはスキップされる
+        assert_eq!(entry.extra_fields.len(), 1);
+        assert_eq!(entry.extra_fields[0].key_name, "token");
+    }
+
+    #[test]
+    fn entry_to_flat_roundtrip() {
+        let original = sample_flat(42);
+        let entry: Entry = original.clone().into();
+        let back: FlatEntry = entry.into();
+        assert_eq!(back.id, 42);
+        assert_eq!(back.extra1_key_name, original.extra1_key_name);
+        assert_eq!(back.extra1_value, original.extra1_value);
+        assert_eq!(back.extra1_encrypted, original.extra1_encrypted);
+        assert_eq!(back.extra2_key_name, original.extra2_key_name);
+        assert_eq!(back.extra2_encrypted, original.extra2_encrypted);
+        assert!(back.extra3_key_name.is_none());
+    }
+
+    #[test]
+    fn entry_with_no_extras_exports_all_none() {
+        let entry = Entry {
+            id: 1,
+            service_name: "test".to_string(),
+            account: "user".to_string(),
+            password: "pass".to_string(),
+            url: None,
+            keyword: "".to_string(),
+            category: "".to_string(),
+            otp_uri: None,
+            notes: None,
+            status: 1,
+            extra_fields: vec![],
+        };
+        let flat: FlatEntry = entry.into();
+        assert!(flat.extra1_key_name.is_none());
+        assert!(flat.extra2_key_name.is_none());
+        assert!(flat.extra3_key_name.is_none());
+    }
+
+    #[test]
+    fn data_store_new_is_empty() {
+        let store = DataStore::new();
+        assert_eq!(store.version, 1);
+        assert!(store.entries.is_empty());
+    }
+}
+
 impl From<Entry> for FlatEntry {
     fn from(e: Entry) -> Self {
         let get = |i: usize| e.extra_fields.get(i).cloned();
