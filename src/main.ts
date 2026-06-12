@@ -1,22 +1,28 @@
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "./api.ts";
+import { showScreen } from "./router.ts";
+import { initInitScreen } from "./screens/init.ts";
+import { initSearchScreen } from "./screens/search.ts";
+import { initAdminScreen } from "./screens/admin.ts";
 
-let greetInputEl: HTMLInputElement | null;
-let greetMsgEl: HTMLElement | null;
+window.addEventListener("DOMContentLoaded", async () => {
+  initInitScreen();
+  initSearchScreen();
+  initAdminScreen();
 
-async function greet() {
-  if (greetMsgEl && greetInputEl) {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsgEl.textContent = await invoke("greet", {
-      name: greetInputEl.value,
-    });
+  showScreen("loading");
+
+  try {
+    const initialized = await api.isInitialized();
+
+    if (!initialized) {
+      showScreen("init");
+      return;
+    }
+
+    await api.unlock();
+    showScreen("search");
+  } catch (err) {
+    console.error("起動エラー:", err);
+    showScreen("init");
   }
-}
-
-window.addEventListener("DOMContentLoaded", () => {
-  greetInputEl = document.querySelector("#greet-input");
-  greetMsgEl = document.querySelector("#greet-msg");
-  document.querySelector("#greet-form")?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    greet();
-  });
 });

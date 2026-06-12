@@ -13,9 +13,11 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "pwstore-tauri",
-        "width": 800,
-        "height": 600
+        "title": "pwstore",
+        "width": 480,
+        "height": 520,
+        "resizable": true,
+        "center": true
       }
     ],
     "security": {
