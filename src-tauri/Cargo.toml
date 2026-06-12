@@ -20,12 +20,16 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-deep-link = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 keyring = "3"
 aes-gcm = "0.10"
 scrypt = "0.11"
 rand = "0.8"
-base64 = "0.22"
+base64 = { version = "0.22", features = ["alloc"] }
 totp-rs = { version = "5", features = ["otpauth"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+sha2 = "0.10"
+url = "2"
 

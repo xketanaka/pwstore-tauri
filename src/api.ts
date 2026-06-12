@@ -40,15 +40,24 @@ export interface FlatEntry {
 }
 
 export const api = {
-  isInitialized:   ()                               => invoke<boolean>("is_initialized"),
-  saveCredentials: (googleAccount: string, passphrase: string) =>
-                                                       invoke<void>("save_credentials", { googleAccount, passphrase }),
-  getGoogleAccount: ()                              => invoke<string>("get_google_account"),
-  unlock:          ()                               => invoke<void>("unlock"),
-  searchEntries:   (keyword: string)               => invoke<Entry[]>("search_entries", { keyword }),
-  upsertEntry:     (entry: Entry)                  => invoke<Entry>("upsert_entry", { entry }),
-  deleteEntry:     (id: number)                    => invoke<void>("delete_entry", { id }),
-  importFlat:      (entries: FlatEntry[])          => invoke<number>("import_flat", { entries }),
-  exportFlat:      ()                              => invoke<FlatEntry[]>("export_flat"),
-  generateOtp:     (otpUri: string)               => invoke<[string, number]>("generate_otp", { otpUri }),
+  // 認証情報
+  isInitialized:        ()                                      => invoke<boolean>("is_initialized"),
+  saveCredentials:      (googleAccount: string, passphrase: string) =>
+                                                                   invoke<void>("save_credentials", { googleAccount, passphrase }),
+  getGoogleAccount:     ()                                      => invoke<string>("get_google_account"),
+  unlock:               ()                                      => invoke<void>("unlock"),
+  // エントリ操作
+  searchEntries:        (keyword: string)                      => invoke<Entry[]>("search_entries", { keyword }),
+  upsertEntry:          (entry: Entry)                         => invoke<Entry>("upsert_entry", { entry }),
+  deleteEntry:          (id: number)                           => invoke<void>("delete_entry", { id }),
+  // インポート／エクスポート
+  importFlat:           (entries: FlatEntry[])                 => invoke<number>("import_flat", { entries }),
+  exportFlat:           ()                                     => invoke<FlatEntry[]>("export_flat"),
+  // OTP
+  generateOtp:          (otpUri: string)                      => invoke<[string, number]>("generate_otp", { otpUri }),
+  // Google OAuth
+  saveClientId:         (clientId: string)                    => invoke<void>("save_client_id", { clientId }),
+  getClientId:          ()                                     => invoke<string>("get_client_id"),
+  startOauth:           ()                                     => invoke<void>("start_oauth"),
+  handleOauthCallback:  (url: string)                         => invoke<void>("handle_oauth_callback", { url }),
 };

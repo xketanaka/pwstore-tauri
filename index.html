@@ -17,41 +17,61 @@
           <h1>pwstore</h1>
           <p class="init-subtitle">初期設定</p>
         </div>
-        <form id="init-form" novalidate>
-          <div class="field">
-            <label for="init-google-account">Googleアカウント</label>
-            <input
-              type="email"
-              id="init-google-account"
-              placeholder="you@gmail.com"
-              autocomplete="username"
-              required
-            />
-          </div>
-          <div class="field">
-            <label for="init-passphrase">マスターパスフレーズ</label>
-            <input
-              type="password"
-              id="init-passphrase"
-              placeholder="8文字以上"
-              autocomplete="new-password"
-              required
-            />
-          </div>
-          <div class="field">
-            <label for="init-passphrase-confirm">確認（再入力）</label>
-            <input
-              type="password"
-              id="init-passphrase-confirm"
-              autocomplete="new-password"
-              required
-            />
-          </div>
-          <div id="init-error" class="error-msg" hidden></div>
-          <button type="submit" id="init-submit" class="btn-primary">
-            設定を保存する
+
+        <!-- ステップ1: クライアントID・パスフレーズ -->
+        <div id="init-step1">
+          <p class="init-hint">
+            Google Cloud Console で作成した OAuth クライアントID（デスクトップアプリ用）を入力してください。
+          </p>
+          <form id="init-form" novalidate>
+            <div class="field">
+              <label for="init-client-id">Google OAuth クライアントID</label>
+              <input
+                type="text"
+                id="init-client-id"
+                placeholder="XXXXXXXXXX.apps.googleusercontent.com"
+                autocomplete="off"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="init-passphrase">マスターパスフレーズ</label>
+              <input
+                type="password"
+                id="init-passphrase"
+                placeholder="8文字以上"
+                autocomplete="new-password"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="init-passphrase-confirm">確認（再入力）</label>
+              <input
+                type="password"
+                id="init-passphrase-confirm"
+                autocomplete="new-password"
+                required
+              />
+            </div>
+            <div id="init-error" class="error-msg" hidden></div>
+            <button type="submit" id="init-submit" class="btn-primary">
+              次へ（Google認証）
+            </button>
+          </form>
+        </div>
+
+        <!-- ステップ2: Google OAuth -->
+        <div id="init-step2" hidden>
+          <p class="init-hint">
+            ボタンを押してブラウザでGoogleアカウントを認証してください。<br>
+            認証後、自動でアプリに戻ります。
+          </p>
+          <button id="init-oauth-btn" class="btn-primary">
+            Googleアカウントで認証する
           </button>
-        </form>
+          <p id="init-oauth-status" class="oauth-status"></p>
+          <div id="init-oauth-error" class="error-msg" hidden></div>
+        </div>
       </div>
     </div>
 
