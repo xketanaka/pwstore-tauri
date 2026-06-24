@@ -30,6 +30,7 @@ rand = "0.8"
 base64 = { version = "0.22", features = ["alloc"] }
 totp-rs = { version = "5", features = ["otpauth"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+tokio = { version = "1", features = ["net", "io-util"] }
 sha2 = "0.10"
 url = "2"
 

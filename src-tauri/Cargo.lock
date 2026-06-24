@@ -2871,6 +2871,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-deep-link",
  "tauri-plugin-opener",
+ "tokio",
  "totp-rs",
  "url",
 ]

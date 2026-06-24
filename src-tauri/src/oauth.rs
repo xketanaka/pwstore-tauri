@@ -3,7 +3,7 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use keyring::Entry as KeyringEntry;
 use rand::RngCore;
 use sha2::{Digest, Sha256};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 
 const KEYRING_SERVICE: &str = "pwstore-tauri";
@@ -90,7 +90,7 @@ pub fn get_client_id(app: tauri::AppHandle) -> Result<String, String> {
 #[cfg(desktop)]
 #[tauri::command]
 pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::io::AsyncReadExt;
     use tokio::net::TcpListener;
 
     let client_id = get_client_id(app.clone())?;
