@@ -1,4 +1,4 @@
-import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
+import { listen } from "@tauri-apps/api/event";
 import { api } from "../api.ts";
 import { showScreen } from "../router.ts";
 
@@ -68,27 +68,35 @@ function showStep2(): void {
   const errorEl   = document.querySelector<HTMLElement>("#init-oauth-error")!;
   const statusEl  = document.querySelector<HTMLElement>("#init-oauth-status")!;
 
-  // deep-link コールバックを待ち受ける
-  onOpenUrl(async (urls) => {
-    const callbackUrl = urls.find((u) => u.startsWith("pwstore://oauth/callback"));
-    if (!callbackUrl) return;
+  // oauth-complete / oauth-error イベントを待ち受ける
+  let unlistenComplete: (() => void) | null = null;
+  let unlistenError: (() => void) | null = null;
 
-    statusEl.textContent = "認証コードを処理中...";
+  const cleanup = () => {
+    unlistenComplete?.();
+    unlistenError?.();
+  };
+
+  listen<void>("oauth-complete", async () => {
+    cleanup();
+    statusEl.textContent = "認証完了。データを読み込み中...";
     hideError(errorEl);
-
     try {
-      await api.handleOauthCallback(callbackUrl);
-      statusEl.textContent = "認証完了。データを読み込み中...";
       await api.unlock();
       showScreen("search");
     } catch (err) {
-      showError(errorEl, `認証エラー: ${err}`);
-      statusEl.textContent = "";
+      showError(errorEl, `データ読み込みエラー: ${err}`);
       oauthBtn.disabled = false;
+      statusEl.textContent = "";
     }
-  }).catch((err) => {
-    showError(errorEl, `Deep-linkの初期化に失敗しました: ${err}`);
-  });
+  }).then((fn) => { unlistenComplete = fn; });
+
+  listen<string>("oauth-error", (event) => {
+    cleanup();
+    showError(errorEl, `認証エラー: ${event.payload}`);
+    oauthBtn.disabled = false;
+    statusEl.textContent = "";
+  }).then((fn) => { unlistenError = fn; });
 
   oauthBtn.addEventListener("click", async () => {
     hideError(errorEl);

@@ -15,7 +15,7 @@
       {
         "title": "pwstore",
         "width": 480,
-        "height": 520,
+        "height": 650,
         "resizable": true,
         "center": true
       }
@@ -29,9 +29,9 @@
       "desktop": {
         "schemes": ["pwstore"]
       },
-      "mobile": {
-        "schemes": ["pwstore"]
-      }
+      "mobile": [
+        { "scheme": ["pwstore"] }
+      ]
     }
   },
   "bundle": {
