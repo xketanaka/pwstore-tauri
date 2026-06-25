@@ -26,6 +26,19 @@ export async function showAdminScreen(): Promise<void> {
   await refresh();
 }
 
+export async function showAdminScreenWithEntry(entry: Entry): Promise<void> {
+  showScreen("admin");
+  await refresh();
+  selectedEntryId = entry.id;
+  // カテゴリペインも選択状態に合わせる
+  const cat = entry.category || "(なし)";
+  selectedCategory = cat;
+  renderCategories();
+  renderServices();
+  const found = allEntries.find((e) => e.id === entry.id) ?? entry;
+  showEntryForm(found);
+}
+
 // ---- Data ----
 
 async function refresh(): Promise<void> {
