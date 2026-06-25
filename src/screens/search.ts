@@ -1,6 +1,6 @@
-import { showScreen } from "../router.ts";
+import { showAdminScreen } from "./admin.ts";
 
 export function initSearchScreen(): void {
   document.querySelector<HTMLButtonElement>("#search-admin-btn")
-    ?.addEventListener("click", () => showScreen("admin"));
+    ?.addEventListener("click", () => showAdminScreen());
 }

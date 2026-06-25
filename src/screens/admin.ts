@@ -1,6 +1,295 @@
+import { api, Entry, ExtraField } from "../api.ts";
 import { showScreen } from "../router.ts";
+
+// ---- State ----
+
+let allEntries: Entry[] = [];
+let selectedCategory: string | null = null;  // null = すべて
+let selectedEntryId: number | null = null;
+
+// ---- Public API ----
 
 export function initAdminScreen(): void {
   document.querySelector<HTMLButtonElement>("#admin-back-btn")
     ?.addEventListener("click", () => showScreen("search"));
+
+  document.querySelector<HTMLButtonElement>("#admin-new-btn")
+    ?.addEventListener("click", () => {
+      selectedEntryId = null;
+      renderServices();
+      showEntryForm(null);
+    });
+}
+
+export async function showAdminScreen(): Promise<void> {
+  showScreen("admin");
+  await refresh();
+}
+
+// ---- Data ----
+
+async function refresh(): Promise<void> {
+  allEntries = await api.searchEntries("");
+  renderCategories();
+  renderServices();
+}
+
+// ---- Category Pane ----
+
+function renderCategories(): void {
+  const list = document.querySelector<HTMLUListElement>("#category-list")!;
+  list.innerHTML = "";
+
+  const cats = [...new Set(allEntries.map((e) => e.category || "(なし)"))].sort();
+
+  for (const cat of ["(すべて)", ...cats]) {
+    const li = document.createElement("li");
+    li.textContent = cat;
+    const isAll = cat === "(すべて)";
+    if ((isAll && selectedCategory === null) || cat === selectedCategory) {
+      li.classList.add("active");
+    }
+    li.addEventListener("click", () => {
+      selectedCategory = isAll ? null : cat;
+      selectedEntryId = null;
+      renderCategories();
+      renderServices();
+      showPlaceholder();
+    });
+    list.appendChild(li);
+  }
+}
+
+// ---- Service Pane ----
+
+function filteredEntries(): Entry[] {
+  if (selectedCategory === null) return allEntries;
+  return allEntries.filter(
+    (e) => (e.category || "(なし)") === selectedCategory
+  );
+}
+
+function renderServices(): void {
+  const list = document.querySelector<HTMLUListElement>("#service-list")!;
+  list.innerHTML = "";
+
+  for (const entry of filteredEntries()) {
+    const li = document.createElement("li");
+    li.textContent = entry.service_name;
+    li.title = entry.account;
+    if (entry.id === selectedEntryId) li.classList.add("active");
+    li.addEventListener("click", () => {
+      selectedEntryId = entry.id;
+      renderServices();
+      showEntryForm(entry);
+    });
+    list.appendChild(li);
+  }
+}
+
+// ---- Detail Pane ----
+
+function showEntryForm(entry: Entry | null): void {
+  const detail = document.querySelector<HTMLElement>("#entry-detail")!;
+  detail.innerHTML = buildFormHTML(entry);
+  setupFormHandlers(entry);
+}
+
+function showPlaceholder(): void {
+  const detail = document.querySelector<HTMLElement>("#entry-detail")!;
+  detail.innerHTML = `<p class="placeholder-text">左のリストからサービスを選択してください</p>`;
+}
+
+function buildFormHTML(entry: Entry | null): string {
+  const e = entry ?? emptyEntry();
+  const extras = padExtras(e.extra_fields);
+
+  return `
+    <form id="entry-form" novalidate>
+      <div class="form-row">
+        <label>サービス名 <span class="required">*</span></label>
+        <input type="text" name="service_name" value="${esc(e.service_name)}" required autocomplete="off" />
+      </div>
+      <div class="form-row">
+        <label>アカウント <span class="required">*</span></label>
+        <input type="text" name="account" value="${esc(e.account)}" autocomplete="off" />
+      </div>
+      <div class="form-row">
+        <label>パスワード <span class="required">*</span></label>
+        <div class="password-row">
+          <input type="password" name="password" value="${esc(e.password)}" class="password-input" autocomplete="off" />
+          <button type="button" class="btn-icon btn-show-pass" title="表示/非表示">👁</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>URL</label>
+        <input type="text" name="url" value="${esc(e.url ?? "")}" autocomplete="off" />
+      </div>
+      <div class="form-row">
+        <label>カテゴリ</label>
+        <input type="text" name="category" value="${esc(e.category)}" autocomplete="off" />
+      </div>
+      <div class="form-row">
+        <label>キーワード</label>
+        <input type="text" name="keyword" value="${esc(e.keyword)}" autocomplete="off" />
+      </div>
+      <div class="form-row">
+        <label>OTP URI</label>
+        <input type="text" name="otp_uri" value="${esc(e.otp_uri ?? "")}" placeholder="otpauth://totp/..." autocomplete="off" />
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea name="notes" rows="3">${esc(e.notes ?? "")}</textarea>
+      </div>
+
+      <div class="form-section-title">拡張フィールド</div>
+      ${extras.map((f, i) => extraFieldHTML(f, i)).join("")}
+
+      <div id="form-error" class="error-msg" hidden></div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-submit">
+          ${entry ? "保存" : "追加"}
+        </button>
+        ${entry ? `<button type="button" id="delete-btn" class="btn-danger">削除</button>` : ""}
+      </div>
+    </form>
+  `;
+}
+
+function extraFieldHTML(f: ExtraField, i: number): string {
+  return `
+    <div class="extra-field" data-index="${i}">
+      <input type="text" class="extra-key" placeholder="項目名" value="${esc(f.key_name)}" autocomplete="off" />
+      <input type="${f.encrypted ? "password" : "text"}" class="extra-val" placeholder="値" value="${esc(f.value)}" autocomplete="off" />
+      <label class="extra-enc-label" title="暗号化して保存">
+        <input type="checkbox" class="extra-enc" ${f.encrypted ? "checked" : ""} />
+        🔒
+      </label>
+    </div>
+  `;
+}
+
+function setupFormHandlers(entry: Entry | null): void {
+  const form = document.querySelector<HTMLFormElement>("#entry-form")!;
+  const errorEl = document.querySelector<HTMLElement>("#form-error")!;
+
+  // パスワード表示/非表示トグル
+  form.querySelector<HTMLButtonElement>(".btn-show-pass")?.addEventListener("click", () => {
+    const input = form.querySelector<HTMLInputElement>(".password-input")!;
+    input.type = input.type === "password" ? "text" : "password";
+  });
+
+  // 拡張フィールドの暗号化チェックで input type を切り替え
+  form.querySelectorAll<HTMLInputElement>(".extra-enc").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const row = cb.closest<HTMLElement>(".extra-field")!;
+      const val = row.querySelector<HTMLInputElement>(".extra-val")!;
+      val.type = cb.checked ? "password" : "text";
+    });
+  });
+
+  // 保存
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    errorEl.hidden = true;
+
+    const data = new FormData(form);
+    const serviceName = (data.get("service_name") as string).trim();
+    const account = (data.get("account") as string).trim();
+    const password = data.get("password") as string;
+
+    if (!serviceName) { showError(errorEl, "サービス名は必須です"); return; }
+    if (!account) { showError(errorEl, "アカウントは必須です"); return; }
+    if (!password) { showError(errorEl, "パスワードは必須です"); return; }
+
+    const updated: Entry = {
+      id: entry?.id ?? 0,
+      service_name: serviceName,
+      account,
+      password,
+      url: (data.get("url") as string).trim() || undefined,
+      category: (data.get("category") as string).trim(),
+      keyword: (data.get("keyword") as string).trim(),
+      otp_uri: (data.get("otp_uri") as string).trim() || undefined,
+      notes: (data.get("notes") as string).trim() || undefined,
+      status: entry?.status ?? 1,
+      extra_fields: collectExtraFields(form),
+    };
+
+    try {
+      const saved = await api.upsertEntry(updated);
+      selectedEntryId = saved.id;
+      await refresh();
+      const found = allEntries.find((e) => e.id === saved.id) ?? saved;
+      showEntryForm(found);
+    } catch (err) {
+      showError(errorEl, `保存エラー: ${err}`);
+    }
+  });
+
+  // 削除
+  form.querySelector<HTMLButtonElement>("#delete-btn")?.addEventListener("click", async () => {
+    if (!entry) return;
+    if (!window.confirm(`「${entry.service_name}」を削除しますか？`)) return;
+    try {
+      await api.deleteEntry(entry.id);
+      selectedEntryId = null;
+      await refresh();
+      showPlaceholder();
+    } catch (err) {
+      showError(errorEl, `削除エラー: ${err}`);
+    }
+  });
+}
+
+function collectExtraFields(form: HTMLFormElement): ExtraField[] {
+  const result: ExtraField[] = [];
+  form.querySelectorAll<HTMLElement>(".extra-field").forEach((row) => {
+    const key = (row.querySelector<HTMLInputElement>(".extra-key")?.value ?? "").trim();
+    const val = row.querySelector<HTMLInputElement>(".extra-val")?.value ?? "";
+    const enc = row.querySelector<HTMLInputElement>(".extra-enc")?.checked ?? false;
+    if (key) result.push({ key_name: key, value: val, encrypted: enc });
+  });
+  return result;
+}
+
+// ---- Utilities ----
+
+function emptyEntry(): Entry {
+  return {
+    id: 0,
+    service_name: "",
+    account: "",
+    password: "",
+    url: undefined,
+    category:
+      selectedCategory !== null && selectedCategory !== "(なし)"
+        ? selectedCategory
+        : "",
+    keyword: "",
+    otp_uri: undefined,
+    notes: undefined,
+    status: 1,
+    extra_fields: [],
+  };
+}
+
+function padExtras(fields: ExtraField[]): ExtraField[] {
+  const result = [...fields];
+  while (result.length < 3) result.push({ key_name: "", value: "", encrypted: false });
+  return result.slice(0, 3);
+}
+
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function showError(el: HTMLElement, msg: string): void {
+  el.textContent = msg;
+  el.hidden = false;
 }

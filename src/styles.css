@@ -324,6 +324,142 @@ input:focus {
   margin-top: 60px;
 }
 
+/* ---- 管理画面: ペインヘッダーに新規ボタン ---- */
+.pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pane-header-btn {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.pane-header-btn:hover { color: var(--accent-hover); background: none; }
+
+/* ---- 管理画面: エントリフォーム ---- */
+textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--font);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+textarea:focus { border-color: var(--accent); }
+
+.form-row {
+  margin-bottom: 10px;
+}
+
+.form-row label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.required { color: var(--danger); }
+
+.password-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.password-row .password-input { flex: 1; }
+
+.form-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 14px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.extra-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.extra-key {
+  width: 90px;
+  min-width: 90px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.extra-val {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.extra-enc-label {
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.extra-enc-label input { margin-right: 2px; }
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-submit {
+  flex: 1;
+  padding: 9px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-submit:hover { background: var(--accent-hover); }
+.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-danger {
+  padding: 9px 16px;
+  background: none;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-danger:hover { background: rgba(229, 62, 62, 0.08); }
+
 /* ---- 初期化画面 補足 ---- */
 .init-hint {
   font-size: 12px;
