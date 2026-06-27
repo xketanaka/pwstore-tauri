@@ -31,6 +31,8 @@ pub fn run() {
             // Google OAuth
             oauth::save_client_id,
             oauth::get_client_id,
+            oauth::save_client_secret,
+            oauth::get_client_secret,
             oauth::start_oauth,
             oauth::handle_oauth_callback,
         ])

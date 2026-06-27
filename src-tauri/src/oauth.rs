@@ -86,6 +86,23 @@ pub fn get_client_id(app: tauri::AppHandle) -> Result<String, String> {
         .ok_or_else(|| "クライアントIDが設定されていません".to_string())
 }
 
+#[tauri::command]
+pub fn save_client_secret(app: tauri::AppHandle, client_secret: String) -> Result<(), String> {
+    let mut config = read_config(&app);
+    config["google_client_secret"] = serde_json::Value::String(client_secret);
+    write_config(&app, &config)
+}
+
+#[tauri::command]
+pub fn get_client_secret(app: tauri::AppHandle) -> Result<String, String> {
+    let config = read_config(&app);
+    config["google_client_secret"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .ok_or_else(|| "クライアントシークレットが設定されていません".to_string())
+}
+
 /// デスクトップ: ループバックHTTPサーバーでOAuthコールバックを受け取る
 #[cfg(desktop)]
 #[tauri::command]
@@ -94,6 +111,7 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
     use tokio::net::TcpListener;
 
     let client_id = get_client_id(app.clone())?;
+    let client_secret = get_client_secret(app.clone())?;
     let verifier = generate_code_verifier();
     let challenge = code_challenge(&verifier);
 
@@ -148,6 +166,7 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
                 .form(&[
                     ("code", code.as_str()),
                     ("client_id", client_id.as_str()),
+                    ("client_secret", client_secret.as_str()),
                     ("redirect_uri", redirect_uri.as_str()),
                     ("code_verifier", verifier.as_str()),
                     ("grant_type", "authorization_code"),
@@ -244,6 +263,7 @@ pub async fn handle_oauth_callback(
         .ok_or("OAuthセッションが見つかりません。もう一度試してください。")?;
 
     let client_id = get_client_id(app.clone())?;
+    let client_secret = get_client_secret(app.clone())?;
 
     let client = reqwest::Client::new();
     let res = client
@@ -251,6 +271,7 @@ pub async fn handle_oauth_callback(
         .form(&[
             ("code", code.as_str()),
             ("client_id", &client_id),
+            ("client_secret", &client_secret),
             ("redirect_uri", MOBILE_REDIRECT_URI),
             ("code_verifier", &verifier),
             ("grant_type", "authorization_code"),
