@@ -182,7 +182,9 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
                 .as_str()
                 .ok_or("リフレッシュトークンを取得できませんでした。Google Cloudの設定を確認してください。")?;
 
-            commands::save_secret(&app, "refresh_token", refresh_token)
+            commands::save_secret(&app, "refresh_token", refresh_token)?;
+            let app_state = app.state::<commands::AppState>();
+            commands::do_unlock(&app, &app_state)
         }
         .await;
 
@@ -287,6 +289,8 @@ pub async fn handle_oauth_callback(
         .ok_or("リフレッシュトークンを取得できませんでした。Google Cloudの設定を確認してください。")?;
 
     commands::save_secret(&app, "refresh_token", refresh_token)?;
+    let app_state = app.state::<commands::AppState>();
+    commands::do_unlock(&app, &app_state)?;
 
     app.emit("oauth-complete", ()).ok();
     Ok(())

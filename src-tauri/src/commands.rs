@@ -140,11 +140,10 @@ pub fn save_credentials(
     Ok(())
 }
 
-/// ファイルからパスフレーズを読んでデータを復号しセッションに保持する
-#[tauri::command]
-pub fn unlock(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
-    let passphrase = load_passphrase_file(&app)?;
-    let path = data_file_path(&app)?;
+/// ファイルからパスフレーズを読んでデータを復号しセッションに保持する（内部共有用）
+pub fn do_unlock(app: &AppHandle, state: &AppState) -> Result<(), String> {
+    let passphrase = load_passphrase_file(app)?;
+    let path = data_file_path(app)?;
     let store = if path.exists() {
         let encrypted = std::fs::read(&path).map_err(|e| e.to_string())?;
         let json = crypto::decrypt(&encrypted, &passphrase)?;
@@ -155,6 +154,12 @@ pub fn unlock(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> 
     *state.passphrase.lock().unwrap() = Some(passphrase);
     *state.store.lock().unwrap() = Some(store);
     Ok(())
+}
+
+/// Tauriコマンド版（起動時の復号に使用）
+#[tauri::command]
+pub fn unlock(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    do_unlock(&app, &state)
 }
 
 #[tauri::command]

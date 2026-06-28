@@ -85,18 +85,9 @@ function showStep2(): void {
     unlistenError?.();
   };
 
-  listen<void>("oauth-complete", async () => {
+  listen<void>("oauth-complete", () => {
     cleanup();
-    statusEl.textContent = "認証完了。データを読み込み中...";
-    hideError(errorEl);
-    try {
-      await api.unlock();
-      showScreen("search");
-    } catch (err) {
-      showError(errorEl, `データ読み込みエラー: ${err}`);
-      oauthBtn.disabled = false;
-      statusEl.textContent = "";
-    }
+    showScreen("search");
   }).then((fn) => { unlistenComplete = fn; });
 
   listen<string>("oauth-error", (event) => {
