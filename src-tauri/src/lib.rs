@@ -17,7 +17,6 @@ pub fn run() {
             // 認証情報
             commands::is_initialized,
             commands::save_credentials,
-            commands::get_google_account,
             commands::unlock,
             // エントリ操作
             commands::search_entries,

@@ -56,8 +56,7 @@ function setupStep1(): void {
     try {
       await api.saveClientId(clientId);
       await api.saveClientSecret(clientSecret);
-      // Googleアカウント名はOAuth完了後に設定するため仮値として空を入れる
-      await api.saveCredentials("", passphrase);
+      await api.saveCredentials(passphrase);
       showStep2();
     } catch (err) {
       showError(errorEl, `エラー: ${err}`);

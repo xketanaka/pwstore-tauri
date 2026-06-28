@@ -6,6 +6,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+CLIENT-ID.txt
+keyring-test
 
 node_modules
 dist

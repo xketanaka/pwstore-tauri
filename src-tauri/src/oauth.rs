@@ -1,13 +1,12 @@
 use std::sync::Mutex;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use keyring::Entry as KeyringEntry;
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 use tauri::{Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 
-const KEYRING_SERVICE: &str = "pwstore-tauri";
-const KEYRING_REFRESH_TOKEN_KEY: &str = "google_refresh_token";
+use crate::commands;
+
 const CONFIG_FILE: &str = "config.json";
 
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -58,12 +57,10 @@ fn write_config(app: &tauri::AppHandle, config: &serde_json::Value) -> Result<()
     std::fs::write(path, json).map_err(|e| e.to_string())
 }
 
-// ---- Keyring ヘルパー（シークレット値のみ） ----
+// ---- リフレッシュトークン ----
 
-pub fn get_refresh_token() -> Result<String, String> {
-    KeyringEntry::new(KEYRING_SERVICE, KEYRING_REFRESH_TOKEN_KEY)
-        .map_err(|e| e.to_string())?
-        .get_password()
+pub fn get_refresh_token(app: &tauri::AppHandle) -> Result<String, String> {
+    commands::load_secret(app, "refresh_token")
         .map_err(|_| "リフレッシュトークンが見つかりません。再認証してください。".to_string())
 }
 
@@ -173,7 +170,7 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
                 ])
                 .send()
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| reqwest_err_chain(&e))?;
 
             let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
 
@@ -185,10 +182,7 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
                 .as_str()
                 .ok_or("リフレッシュトークンを取得できませんでした。Google Cloudの設定を確認してください。")?;
 
-            KeyringEntry::new(KEYRING_SERVICE, KEYRING_REFRESH_TOKEN_KEY)
-                .map_err(|e| e.to_string())?
-                .set_password(refresh_token)
-                .map_err(|e| e.to_string())
+            commands::save_secret(&app, "refresh_token", refresh_token)
         }
         .await;
 
@@ -278,7 +272,7 @@ pub async fn handle_oauth_callback(
         ])
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| reqwest_err_chain(&e))?;
 
     let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
 
@@ -292,16 +286,25 @@ pub async fn handle_oauth_callback(
         .as_str()
         .ok_or("リフレッシュトークンを取得できませんでした。Google Cloudの設定を確認してください。")?;
 
-    KeyringEntry::new(KEYRING_SERVICE, KEYRING_REFRESH_TOKEN_KEY)
-        .map_err(|e| e.to_string())?
-        .set_password(refresh_token)
-        .map_err(|e| e.to_string())?;
+    commands::save_secret(&app, "refresh_token", refresh_token)?;
 
     app.emit("oauth-complete", ()).ok();
     Ok(())
 }
 
 // ---- ユーティリティ ----
+
+/// reqwest エラーのソースチェーンを連結して返す（デバッグ用）
+fn reqwest_err_chain(e: &reqwest::Error) -> String {
+    use std::error::Error;
+    let mut msg = e.to_string();
+    let mut src = e.source();
+    while let Some(s) = src {
+        msg.push_str(&format!(": {s}"));
+        src = s.source();
+    }
+    msg
+}
 
 fn urlencoding(s: String) -> String {
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()

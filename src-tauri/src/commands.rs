@@ -1,21 +1,20 @@
 use std::sync::Mutex;
-use keyring::Entry as KeyringEntry;
 use tauri::{AppHandle, Manager, State};
 
 use crate::crypto;
 use crate::models::{DataStore, Entry, FlatEntry};
 
-const KEYRING_SERVICE: &str = "pwstore-tauri";
-const KEYRING_ACCOUNT_KEY: &str = "google_account";
-const KEYRING_PASSPHRASE_KEY: &str = "master_passphrase";
-
 pub struct AppState {
     pub store: Mutex<Option<DataStore>>,
+    pub passphrase: Mutex<Option<String>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
-        Self { store: Mutex::new(None) }
+        Self {
+            store: Mutex::new(None),
+            passphrase: Mutex::new(None),
+        }
     }
 }
 
@@ -61,59 +60,90 @@ pub fn apply_import(entries: &mut Vec<Entry>, flat_entries: Vec<FlatEntry>) -> u
 
 // ---- Tauri依存ヘルパー ----
 
-fn data_file_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+fn data_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.join("data.enc"))
+    Ok(dir)
 }
 
-fn get_passphrase() -> Result<String, String> {
-    KeyringEntry::new(KEYRING_SERVICE, KEYRING_PASSPHRASE_KEY)
-        .map_err(|e| e.to_string())?
-        .get_password()
+fn data_file_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    Ok(data_dir(app)?.join("data.enc"))
+}
+
+
+// ファイル難読化用の固定キー（セキュリティの本質ではなく、プレーンテキスト検索への引っかかりを防ぐ目的）
+const SECRET_FILE_KEY: &str = "b7Qx2#mKpL9vRnYc4dEzWsA0fJhU6tGi";
+
+/// 秘密情報をAES暗号化してファイルに保存する（passphrase / refresh_token など）
+pub fn save_secret(app: &AppHandle, name: &str, value: &str) -> Result<(), String> {
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = data_dir(app)?.join(name);
+    let encrypted = crypto::encrypt(value.as_bytes(), SECRET_FILE_KEY)?;
+    std::fs::write(&path, encrypted).map_err(|e| e.to_string())?;
+
+    #[cfg(unix)]
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// 秘密情報ファイルを復号して返す
+pub fn load_secret(app: &AppHandle, name: &str) -> Result<String, String> {
+    let path = data_dir(app)?.join(name);
+    let encrypted = std::fs::read(&path)
+        .map_err(|_| format!("{name} が見つかりません"))?;
+    let bytes = crypto::decrypt(&encrypted, SECRET_FILE_KEY)
+        .map_err(|_| format!("{name} の読み込みに失敗しました"))?;
+    String::from_utf8(bytes).map_err(|e| e.to_string())
+}
+
+fn save_passphrase_file(app: &AppHandle, passphrase: &str) -> Result<(), String> {
+    save_secret(app, "passphrase", passphrase)
+}
+
+fn load_passphrase_file(app: &AppHandle) -> Result<String, String> {
+    load_secret(app, "passphrase")
         .map_err(|_| "パスフレーズが見つかりません。初期化してください。".to_string())
 }
 
-fn persist(app: &AppHandle, store: &DataStore) -> Result<(), String> {
-    let passphrase = get_passphrase()?;
+fn persist(app: &AppHandle, store: &DataStore, state: &AppState) -> Result<(), String> {
+    let guard = state.passphrase.lock().unwrap();
+    let passphrase = guard.as_ref().ok_or("セッションが無効です。再起動してください。")?;
     let json = serde_json::to_vec(store).map_err(|e| e.to_string())?;
-    let encrypted = crypto::encrypt(&json, &passphrase)?;
+    let encrypted = crypto::encrypt(&json, passphrase)?;
     std::fs::write(data_file_path(app)?, encrypted).map_err(|e| e.to_string())
 }
 
 // ---- Tauriコマンド ----
 
+/// config.json に client_id が設定済みなら初期化済みとみなす
 #[tauri::command]
-pub fn is_initialized() -> bool {
-    KeyringEntry::new(KEYRING_SERVICE, KEYRING_PASSPHRASE_KEY)
-        .ok()
-        .and_then(|e| e.get_password().ok())
-        .is_some()
+pub fn is_initialized(app: AppHandle) -> bool {
+    let Ok(dir) = app.path().app_config_dir() else { return false };
+    let Ok(s) = std::fs::read_to_string(dir.join("config.json")) else { return false };
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) else { return false };
+    v["google_client_id"].as_str().is_some_and(|s| !s.is_empty())
 }
 
+/// パスフレーズをファイルに保存し、セッションにも保持する
 #[tauri::command]
-pub fn save_credentials(google_account: String, passphrase: String) -> Result<(), String> {
-    KeyringEntry::new(KEYRING_SERVICE, KEYRING_ACCOUNT_KEY)
-        .map_err(|e| e.to_string())?
-        .set_password(&google_account)
-        .map_err(|e| e.to_string())?;
-    KeyringEntry::new(KEYRING_SERVICE, KEYRING_PASSPHRASE_KEY)
-        .map_err(|e| e.to_string())?
-        .set_password(&passphrase)
-        .map_err(|e| e.to_string())
+pub fn save_credentials(
+    app: AppHandle,
+    passphrase: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    save_passphrase_file(&app, &passphrase)?;
+    *state.passphrase.lock().unwrap() = Some(passphrase);
+    Ok(())
 }
 
-#[tauri::command]
-pub fn get_google_account() -> Result<String, String> {
-    KeyringEntry::new(KEYRING_SERVICE, KEYRING_ACCOUNT_KEY)
-        .map_err(|e| e.to_string())?
-        .get_password()
-        .map_err(|_| "Googleアカウントが見つかりません。".to_string())
-}
-
+/// ファイルからパスフレーズを読んでデータを復号しセッションに保持する
 #[tauri::command]
 pub fn unlock(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
-    let passphrase = get_passphrase()?;
+    let passphrase = load_passphrase_file(&app)?;
     let path = data_file_path(&app)?;
     let store = if path.exists() {
         let encrypted = std::fs::read(&path).map_err(|e| e.to_string())?;
@@ -122,6 +152,7 @@ pub fn unlock(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> 
     } else {
         DataStore::new()
     };
+    *state.passphrase.lock().unwrap() = Some(passphrase);
     *state.store.lock().unwrap() = Some(store);
     Ok(())
 }
@@ -138,7 +169,7 @@ pub fn upsert_entry(app: AppHandle, entry: Entry, state: State<'_, AppState>) ->
     let mut guard = state.store.lock().unwrap();
     let store = guard.as_mut().ok_or("ストアがロックされています")?;
     let saved = apply_upsert(&mut store.entries, entry);
-    persist(&app, store)?;
+    persist(&app, store, &state)?;
     Ok(saved)
 }
 
@@ -147,7 +178,7 @@ pub fn delete_entry(app: AppHandle, id: u32, state: State<'_, AppState>) -> Resu
     let mut guard = state.store.lock().unwrap();
     let store = guard.as_mut().ok_or("ストアがロックされています")?;
     store.entries.retain(|e| e.id != id);
-    persist(&app, store)
+    persist(&app, store, &state)
 }
 
 #[tauri::command]
@@ -159,7 +190,7 @@ pub fn import_flat(
     let mut guard = state.store.lock().unwrap();
     let store = guard.as_mut().ok_or("ストアがロックされています")?;
     let count = apply_import(&mut store.entries, entries);
-    persist(&app, store)?;
+    persist(&app, store, &state)?;
     Ok(count)
 }
 

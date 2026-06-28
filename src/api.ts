@@ -42,9 +42,7 @@ export interface FlatEntry {
 export const api = {
   // 認証情報
   isInitialized:        ()                                      => invoke<boolean>("is_initialized"),
-  saveCredentials:      (googleAccount: string, passphrase: string) =>
-                                                                   invoke<void>("save_credentials", { googleAccount, passphrase }),
-  getGoogleAccount:     ()                                      => invoke<string>("get_google_account"),
+  saveCredentials:      (passphrase: string)                    => invoke<void>("save_credentials", { passphrase }),
   unlock:               ()                                      => invoke<void>("unlock"),
   // エントリ操作
   searchEntries:        (keyword: string)                      => invoke<Entry[]>("search_entries", { keyword }),
