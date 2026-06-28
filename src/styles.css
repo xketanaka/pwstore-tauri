@@ -41,6 +41,7 @@ body {
 
 /* ---- 画面共通 ---- */
 .screen { width: 100%; }
+.screen[hidden] { display: none !important; }
 
 /* ---- 初期化画面 ---- */
 .screen-init {
