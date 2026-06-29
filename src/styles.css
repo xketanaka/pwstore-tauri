@@ -202,9 +202,13 @@ input:focus {
   gap: 8px;
 }
 
-.search-result-item:hover,
-.search-result-item.selected {
+.search-result-item:hover {
   background: var(--surface-hover);
+}
+
+.search-result-item.selected {
+  background: #ffe0ec;
+  color: #b5004a;
 }
 
 .result-service {
