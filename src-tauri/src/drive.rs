@@ -68,6 +68,55 @@ pub(crate) fn entries_hash(entries: &[crate::models::Entry]) -> String {
     format!("{:016x}", h)
 }
 
+/// 同期時のアクション
+#[derive(Debug, PartialEq)]
+pub(crate) enum SyncDecision {
+    NoOp,      // ハッシュ一致 → 何もしない
+    Upload,    // ローカルの変更をアップロード（新規ファイルを含む）
+    Download,  // Drive の変更をダウンロード
+    Conflict,  // 両側で変更あり → エラー
+}
+
+/// 同期方向を決定する純粋関数
+///
+/// - `drive_hash`: `None` = Drive にファイルなし
+/// - `last_hash`:  `None` = 同期履歴なし（初回同期）
+/// - `local_empty`: 初回同期の競合判定に使用
+pub(crate) fn decide_sync(
+    local_hash: &str,
+    drive_hash: Option<&str>,
+    last_hash: Option<&str>,
+    local_empty: bool,
+) -> SyncDecision {
+    let Some(drive_hash) = drive_hash else {
+        return SyncDecision::Upload; // Drive にファイルなし → 新規アップロード
+    };
+
+    if local_hash == drive_hash {
+        return SyncDecision::NoOp;
+    }
+
+    match last_hash {
+        Some(last) => {
+            let drive_changed = drive_hash != last;
+            let local_changed = local_hash != last;
+            match (drive_changed, local_changed) {
+                (true, true) => SyncDecision::Conflict,
+                (true, false) => SyncDecision::Download,
+                _ => SyncDecision::Upload, // local only changed
+            }
+        }
+        None => {
+            // 初回同期: ローカルが空なら Drive をダウンロード、両方にデータがあれば競合
+            if local_empty {
+                SyncDecision::Download
+            } else {
+                SyncDecision::Conflict
+            }
+        }
+    }
+}
+
 // ---- HTTP ヘルパー ----
 
 async fn refresh_access_token(app: &AppHandle) -> Result<String, String> {
@@ -254,77 +303,46 @@ pub async fn drive_sync(app: AppHandle, state: State<'_, AppState>) -> Result<()
     let folder_id = find_or_create_folder(&access_token).await?;
     let file_id = find_file_id(&access_token, &folder_id).await?;
 
-    match file_id {
-        None => {
-            // Drive にファイルなし → そのままアップロード
-            let data = std::fs::read(commands::data_file_path(&app)?).map_err(|e| e.to_string())?;
-            upload_to_drive(&access_token, data, None, &folder_id).await?;
-            commands::save_secret(&app, "sync_hash", &local_hash)?;
-        }
+    // Drive にファイルがある場合のみダウンロードしてハッシュを計算
+    let (drive_hash, drive_raw) = match file_id {
+        None => (None, None),
         Some(ref id) => {
-            let drive_raw = fetch_raw(&access_token, id).await?;
-
-            // Drive データを復号してハッシュ計算
-            let drive_hash = {
+            let raw = fetch_raw(&access_token, id).await?;
+            let hash = {
                 let guard = state.passphrase.lock().unwrap();
                 let passphrase = guard.as_ref().ok_or("パスフレーズが設定されていません")?;
-                let json = crate::crypto::decrypt(&drive_raw, passphrase)?;
+                let json = crate::crypto::decrypt(&raw, passphrase)?;
                 let store: crate::models::DataStore =
                     serde_json::from_slice(&json).map_err(|e| e.to_string())?;
                 entries_hash(&store.entries)
             };
+            (Some(hash), Some(raw))
+        }
+    };
 
-            if drive_hash == local_hash {
-                // 差分なし → ハッシュだけ保存して終了
-                commands::save_secret(&app, "sync_hash", &local_hash)?;
-                return Ok(());
-            }
+    let local_empty = {
+        let guard = state.store.lock().unwrap();
+        guard.as_ref().map(|s| s.entries.is_empty()).unwrap_or(true)
+    };
 
-            match last_hash.as_deref() {
-                Some(last) => {
-                    let drive_changed = drive_hash != last;
-                    let local_changed = local_hash != last;
-
-                    if drive_changed && local_changed {
-                        return Err(
-                            "競合が検出されました。他のデバイスでも変更が行われています。".to_string(),
-                        );
-                    }
-
-                    if drive_changed {
-                        // Drive だけ変更 → ダウンロードしてローカル更新
-                        std::fs::write(commands::data_file_path(&app)?, &drive_raw)
-                            .map_err(|e| e.to_string())?;
-                        commands::do_unlock(&app, &state)?;
-                        commands::save_secret(&app, "sync_hash", &drive_hash)?;
-                        return Ok(());
-                    }
-
-                    // ローカルだけ変更 → アップロード
-                    let data = std::fs::read(commands::data_file_path(&app)?)
-                        .map_err(|e| e.to_string())?;
-                    upload_to_drive(&access_token, data, Some(id), &folder_id).await?;
-                    commands::save_secret(&app, "sync_hash", &local_hash)?;
-                }
-                None => {
-                    // 同期履歴なし（初回同期）
-                    let local_empty = {
-                        let guard = state.store.lock().unwrap();
-                        guard.as_ref().map(|s| s.entries.is_empty()).unwrap_or(true)
-                    };
-                    if local_empty {
-                        // ローカルが空 → Drive データをダウンロード
-                        std::fs::write(commands::data_file_path(&app)?, &drive_raw)
-                            .map_err(|e| e.to_string())?;
-                        commands::do_unlock(&app, &state)?;
-                        commands::save_secret(&app, "sync_hash", &drive_hash)?;
-                    } else {
-                        return Err(
-                            "競合が検出されました。Driveとローカルにそれぞれデータがあります。".to_string(),
-                        );
-                    }
-                }
-            }
+    match decide_sync(&local_hash, drive_hash.as_deref(), last_hash.as_deref(), local_empty) {
+        SyncDecision::NoOp => {
+            commands::save_secret(&app, "sync_hash", &local_hash)?;
+        }
+        SyncDecision::Upload => {
+            let data = std::fs::read(commands::data_file_path(&app)?).map_err(|e| e.to_string())?;
+            upload_to_drive(&access_token, data, file_id.as_deref(), &folder_id).await?;
+            commands::save_secret(&app, "sync_hash", &local_hash)?;
+        }
+        SyncDecision::Download => {
+            let raw = drive_raw.unwrap();
+            let hash = drive_hash.unwrap();
+            std::fs::write(commands::data_file_path(&app)?, &raw).map_err(|e| e.to_string())?;
+            commands::do_unlock(&app, &state)?;
+            commands::save_secret(&app, "sync_hash", &hash)?;
+        }
+        SyncDecision::Conflict => {
+            return Err("競合が検出されました。Driveとローカルで変更が競合しています。".to_string());
         }
     }
 
@@ -432,5 +450,135 @@ mod tests {
         let body = build_multipart_body(b"x", "data.enc", "b", None);
         let text = String::from_utf8_lossy(&body);
         assert!(!text.contains("parents"));
+    }
+
+    // ---- entries_hash ----
+
+    fn make_entry(id: u32, service: &str) -> crate::models::Entry {
+        crate::models::Entry {
+            id,
+            service_name: service.to_string(),
+            account: "alice".to_string(),
+            password: "pass".to_string(),
+            url: None,
+            keyword: "".to_string(),
+            category: "".to_string(),
+            otp_uri: None,
+            notes: None,
+            status: 1,
+            extra_fields: vec![],
+        }
+    }
+
+    #[test]
+    fn entries_hash_is_deterministic() {
+        let entries = vec![make_entry(1, "AWS"), make_entry(2, "Google")];
+        assert_eq!(entries_hash(&entries), entries_hash(&entries));
+    }
+
+    #[test]
+    fn entries_hash_is_order_independent() {
+        let a = vec![make_entry(1, "AWS"), make_entry(2, "Google")];
+        let b = vec![make_entry(2, "Google"), make_entry(1, "AWS")];
+        assert_eq!(entries_hash(&a), entries_hash(&b));
+    }
+
+    #[test]
+    fn entries_hash_differs_for_different_data() {
+        let a = vec![make_entry(1, "AWS")];
+        let b = vec![make_entry(1, "Google")];
+        assert_ne!(entries_hash(&a), entries_hash(&b));
+    }
+
+    #[test]
+    fn entries_hash_empty_list_is_stable() {
+        let h = entries_hash(&[]);
+        assert!(!h.is_empty());
+        assert_eq!(h, entries_hash(&[]));
+    }
+
+    #[test]
+    fn entries_hash_empty_differs_from_nonempty() {
+        let h_empty = entries_hash(&[]);
+        let h_one = entries_hash(&[make_entry(1, "AWS")]);
+        assert_ne!(h_empty, h_one);
+    }
+
+    #[test]
+    fn entries_hash_is_16_hex_chars() {
+        let h = entries_hash(&[make_entry(1, "AWS")]);
+        assert_eq!(h.len(), 16);
+        assert!(h.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    // ---- decide_sync ----
+
+    #[test]
+    fn decide_sync_no_drive_file_returns_upload() {
+        assert_eq!(
+            decide_sync("abc", None, None, false),
+            SyncDecision::Upload
+        );
+    }
+
+    #[test]
+    fn decide_sync_same_hashes_returns_noop() {
+        assert_eq!(
+            decide_sync("abc", Some("abc"), None, false),
+            SyncDecision::NoOp
+        );
+    }
+
+    #[test]
+    fn decide_sync_same_hashes_with_last_hash_returns_noop() {
+        assert_eq!(
+            decide_sync("abc", Some("abc"), Some("abc"), false),
+            SyncDecision::NoOp
+        );
+    }
+
+    #[test]
+    fn decide_sync_only_local_changed_returns_upload() {
+        // local=new, drive=old=last → ローカルだけ変更
+        assert_eq!(
+            decide_sync("new_hash", Some("old_hash"), Some("old_hash"), false),
+            SyncDecision::Upload
+        );
+    }
+
+    #[test]
+    fn decide_sync_only_drive_changed_returns_download() {
+        // local=old=last, drive=new → Drive だけ変更
+        assert_eq!(
+            decide_sync("old_hash", Some("new_hash"), Some("old_hash"), false),
+            SyncDecision::Download
+        );
+    }
+
+    #[test]
+    fn decide_sync_both_changed_returns_conflict() {
+        // local=local_new, drive=drive_new, last=base → 両方変更
+        assert_eq!(
+            decide_sync("local_new", Some("drive_new"), Some("base"), false),
+            SyncDecision::Conflict
+        );
+    }
+
+    #[test]
+    fn decide_sync_first_sync_local_empty_returns_download() {
+        // 初回同期・ローカル空・Drive にデータあり
+        assert_eq!(
+            decide_sync("empty_hash", Some("drive_hash"), None, true),
+            SyncDecision::Download
+        );
+    }
+
+    #[test]
+    fn decide_sync_first_sync_both_have_data_returns_conflict() {
+        // 初回同期・両方にデータあり
+        assert_eq!(
+            decide_sync("local_hash", Some("drive_hash"), None, false),
+            SyncDecision::Conflict
+        );
     }
 }

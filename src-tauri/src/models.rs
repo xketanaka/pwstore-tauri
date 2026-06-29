@@ -194,6 +194,35 @@ mod tests {
         let store = DataStore::new();
         assert_eq!(store.version, 1);
         assert!(store.entries.is_empty());
+        assert!(store.categories.is_empty());
+    }
+
+    // --- DataStore categories ---
+
+    #[test]
+    fn data_store_categories_deserialize_with_default_when_absent() {
+        // categories フィールドが存在しない古い形式でも正常にデシリアライズできる
+        let json = r#"{"version":1,"entries":[]}"#;
+        let store: DataStore = serde_json::from_str(json).unwrap();
+        assert!(store.categories.is_empty());
+    }
+
+    #[test]
+    fn data_store_categories_roundtrip() {
+        let mut store = DataStore::new();
+        store.categories = vec!["仕事".to_string(), "プライベート".to_string()];
+        let json = serde_json::to_string(&store).unwrap();
+        let restored: DataStore = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.categories, vec!["仕事", "プライベート"]);
+    }
+
+    #[test]
+    fn data_store_categories_preserves_order() {
+        let mut store = DataStore::new();
+        store.categories = vec!["Z".to_string(), "A".to_string(), "M".to_string()];
+        let json = serde_json::to_string(&store).unwrap();
+        let restored: DataStore = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.categories, vec!["Z", "A", "M"]);
     }
 }
 
