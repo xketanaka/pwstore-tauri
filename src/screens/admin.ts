@@ -242,6 +242,7 @@ function setupFormHandlers(entry: Entry | null): void {
       await refresh();
       const found = allEntries.find((e) => e.id === saved.id) ?? saved;
       showEntryForm(found);
+      autoUpload();
     } catch (err) {
       showError(errorEl, `保存エラー: ${err}`);
     }
@@ -256,6 +257,7 @@ function setupFormHandlers(entry: Entry | null): void {
       selectedEntryId = null;
       await refresh();
       showPlaceholder();
+      autoUpload();
     } catch (err) {
       showError(errorEl, `削除エラー: ${err}`);
     }
@@ -271,6 +273,22 @@ function collectExtraFields(form: HTMLFormElement): ExtraField[] {
     if (key) result.push({ key_name: key, value: val, encrypted: enc });
   });
   return result;
+}
+
+// ---- Drive Auto-Upload ----
+
+async function autoUpload(): Promise<void> {
+  showAdminStatus("Driveに同期中...");
+  try {
+    await api.driveUpload();
+    showAdminStatus("Drive同期完了");
+    setTimeout(() => {
+      const el = document.querySelector<HTMLElement>("#admin-status")!;
+      el.hidden = true;
+    }, 2000);
+  } catch (err) {
+    showAdminStatusError(`Drive同期エラー: ${err}`);
+  }
 }
 
 // ---- Drive Sync ----

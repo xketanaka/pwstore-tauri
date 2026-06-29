@@ -20,6 +20,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     await api.unlock();
+    try {
+      await api.driveDownload();
+    } catch (e) {
+      console.warn("起動時ダウンロード失敗（ローカルデータを使用）:", e);
+    }
     showScreen("search");
   } catch (err) {
     console.error("起動エラー:", err);
