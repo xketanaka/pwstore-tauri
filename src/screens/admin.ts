@@ -42,12 +42,14 @@ async function resizeForAdmin(): Promise<void> {
 export async function showAdminScreen(): Promise<void> {
   await resizeForAdmin();
   showScreen("admin");
+  try { await api.driveDownload(); } catch {}
   await refresh();
 }
 
 export async function showAdminScreenWithEntry(entry: Entry): Promise<void> {
   await resizeForAdmin();
   showScreen("admin");
+  try { await api.driveDownload(); } catch {};
   await refresh();
   selectedEntryId = entry.id;
   // カテゴリペインも選択状態に合わせる
