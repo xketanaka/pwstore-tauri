@@ -119,13 +119,14 @@ fn persist(app: &AppHandle, store: &DataStore, state: &AppState) -> Result<(), S
 
 // ---- Tauriコマンド ----
 
-/// config.json に client_id が設定済みなら初期化済みとみなす
+/// client_id が設定済みかつ OAuth が完走済みなら初期化済みとみなす
 #[tauri::command]
 pub fn is_initialized(app: AppHandle) -> bool {
     let Ok(dir) = app.path().app_config_dir() else { return false };
     let Ok(s) = std::fs::read_to_string(dir.join("config.json")) else { return false };
     let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) else { return false };
     v["google_client_id"].as_str().is_some_and(|s| !s.is_empty())
+        && v["oauth_completed"].as_bool().unwrap_or(false)
 }
 
 /// パスフレーズをファイルに保存し、セッションにも保持する

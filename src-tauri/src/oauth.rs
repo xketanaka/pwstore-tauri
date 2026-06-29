@@ -64,6 +64,13 @@ pub fn get_refresh_token(app: &tauri::AppHandle) -> Result<String, String> {
         .map_err(|_| "リフレッシュトークンが見つかりません。再認証してください。".to_string())
 }
 
+/// OAuth が完走したことを config.json に記録する
+fn set_oauth_completed(app: &tauri::AppHandle) -> Result<(), String> {
+    let mut config = read_config(app);
+    config["oauth_completed"] = serde_json::Value::Bool(true);
+    write_config(app, &config)
+}
+
 // ---- Tauriコマンド ----
 
 #[tauri::command]
@@ -184,7 +191,8 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
 
             commands::save_secret(&app, "refresh_token", refresh_token)?;
             let app_state = app.state::<commands::AppState>();
-            commands::do_unlock(&app, &app_state)
+            commands::do_unlock(&app, &app_state)?;
+            set_oauth_completed(&app)
         }
         .await;
 
@@ -291,6 +299,7 @@ pub async fn handle_oauth_callback(
     commands::save_secret(&app, "refresh_token", refresh_token)?;
     let app_state = app.state::<commands::AppState>();
     commands::do_unlock(&app, &app_state)?;
+    set_oauth_completed(&app)?;
 
     app.emit("oauth-complete", ()).ok();
     Ok(())
