@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod crypto;
+pub mod drive;
 pub mod models;
 pub mod oauth;
 
@@ -34,6 +35,9 @@ pub fn run() {
             oauth::get_client_secret,
             oauth::start_oauth,
             oauth::handle_oauth_callback,
+            // Google Drive 同期
+            drive::drive_upload,
+            drive::drive_download,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

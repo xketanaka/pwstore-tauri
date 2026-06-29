@@ -13,6 +13,12 @@ let selectedIdx = -1;
 export function initSearchScreen(): void {
   const input = document.querySelector<HTMLInputElement>("#search-input")!;
 
+  document.querySelector<HTMLButtonElement>("#search-drive-upload-btn")
+    ?.addEventListener("click", () => handleDriveSync("upload"));
+
+  document.querySelector<HTMLButtonElement>("#search-drive-download-btn")
+    ?.addEventListener("click", () => handleDriveSync("download"));
+
   document.querySelector<HTMLButtonElement>("#search-admin-btn")
     ?.addEventListener("click", () => showAdminScreen());
 
@@ -147,6 +153,32 @@ function updateSelection(): void {
   document.querySelectorAll<HTMLElement>(".search-result-item").forEach((el, i) => {
     el.classList.toggle("selected", i === selectedIdx);
   });
+}
+
+// ---- Drive Sync ----
+
+async function handleDriveSync(direction: "upload" | "download"): Promise<void> {
+  const uploadBtn = document.querySelector<HTMLButtonElement>("#search-drive-upload-btn")!;
+  const downloadBtn = document.querySelector<HTMLButtonElement>("#search-drive-download-btn")!;
+  uploadBtn.disabled = true;
+  downloadBtn.disabled = true;
+
+  const label = direction === "upload" ? "アップロード" : "ダウンロード";
+  showStatus(`Drive ${label}中...`);
+
+  try {
+    if (direction === "upload") {
+      await api.driveUpload();
+    } else {
+      await api.driveDownload();
+    }
+    showStatus(`Drive ${label}完了`);
+  } catch (err) {
+    showStatus(`Drive ${label}エラー: ${err}`);
+  } finally {
+    uploadBtn.disabled = false;
+    downloadBtn.disabled = false;
+  }
 }
 
 // ---- Utilities ----

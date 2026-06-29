@@ -60,13 +60,13 @@ pub fn apply_import(entries: &mut Vec<Entry>, flat_entries: Vec<FlatEntry>) -> u
 
 // ---- Tauri依存ヘルパー ----
 
-fn data_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+pub fn data_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
 }
 
-fn data_file_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+pub fn data_file_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(data_dir(app)?.join("data.enc"))
 }
 
