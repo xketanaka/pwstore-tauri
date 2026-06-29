@@ -569,6 +569,7 @@ textarea:focus { border-color: var(--accent); }
 
 .btn-submit:hover { background: var(--accent-hover); }
 .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-submit--clean { opacity: 0.35; }
 
 .btn-danger {
   padding: 9px 16px;

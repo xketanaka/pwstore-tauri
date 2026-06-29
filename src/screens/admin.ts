@@ -278,9 +278,29 @@ function extraFieldHTML(f: ExtraField, i: number): string {
   `;
 }
 
+function captureFormState(form: HTMLFormElement): string {
+  return Array.from(
+    form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+      'input:not([type="button"]):not([type="submit"]), select, textarea'
+    )
+  ).map((el) =>
+    el instanceof HTMLInputElement && el.type === "checkbox" ? (el.checked ? "1" : "0") : el.value
+  ).join("\0");
+}
+
 function setupFormHandlers(entry: Entry | null): void {
   const form = document.querySelector<HTMLFormElement>("#entry-form")!;
   const errorEl = document.querySelector<HTMLElement>("#form-error")!;
+
+  // 変更検知: 保存ボタンの見た目を更新
+  const submitBtn = form.querySelector<HTMLButtonElement>(".btn-submit")!;
+  const initialState = captureFormState(form);
+  const updateDirty = () => {
+    submitBtn.classList.toggle("btn-submit--clean", captureFormState(form) === initialState);
+  };
+  updateDirty();
+  form.addEventListener("input", updateDirty);
+  form.addEventListener("change", updateDirty);
 
   // パスワード表示/非表示トグル
   form.querySelector<HTMLButtonElement>(".btn-show-pass")?.addEventListener("click", () => {
