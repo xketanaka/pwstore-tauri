@@ -56,12 +56,19 @@ async function handleKeydown(
 
   if (ev.key === "ArrowDown") {
     ev.preventDefault();
-    selectedIdx = (selectedIdx + 1) % results.length;
-    updateSelection();
+    if (selectedIdx < results.length - 1) {
+      selectedIdx += 1;
+      updateSelection();
+    }
   } else if (ev.key === "ArrowUp") {
     ev.preventDefault();
-    selectedIdx = (selectedIdx - 1 + results.length) % results.length;
-    updateSelection();
+    if (selectedIdx === 0) {
+      selectedIdx = -1;
+      updateSelection();
+    } else if (selectedIdx > 0) {
+      selectedIdx -= 1;
+      updateSelection();
+    }
   } else if (ev.key === "Enter") {
     ev.preventDefault();
     const entry = results[selectedIdx];
