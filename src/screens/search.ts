@@ -174,7 +174,7 @@ async function handleDriveSync(direction: "upload" | "download"): Promise<void> 
     }
     showStatus(`Drive ${label}完了`);
   } catch (err) {
-    showStatus(`Drive ${label}エラー: ${err}`);
+    showStatusError(`Drive ${label}エラー: ${err}`);
   } finally {
     uploadBtn.disabled = false;
     downloadBtn.disabled = false;
@@ -195,8 +195,18 @@ async function copyToClipboard(text: string): Promise<void> {
 function showStatus(msg: string): void {
   const el = document.querySelector<HTMLElement>("#search-status")!;
   el.textContent = msg;
+  el.className = "search-status";
   el.hidden = false;
   setTimeout(() => { el.hidden = true; }, 1500);
+}
+
+function showStatusError(msg: string): void {
+  const el = document.querySelector<HTMLElement>("#search-status")!;
+  el.textContent = msg;
+  el.className = "search-status search-status-error";
+  el.hidden = false;
+  // クリックで閉じる
+  el.onclick = () => { el.hidden = true; el.onclick = null; };
 }
 
 function esc(s: string): string {

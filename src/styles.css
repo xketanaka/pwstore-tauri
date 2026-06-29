@@ -248,6 +248,11 @@ input:focus {
   text-align: center;
   border-bottom: 1px solid var(--border);
 }
+.search-status-error {
+  color: var(--danger);
+  cursor: pointer;
+  word-break: break-all;
+}
 
 /* ---- 管理画面 ---- */
 .screen-admin {
