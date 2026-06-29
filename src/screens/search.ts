@@ -64,14 +64,15 @@ async function handleKeydown(
     updateSelection();
   } else if (ev.key === "Enter") {
     ev.preventDefault();
-    const entry = results[selectedIdx] ?? results[0];
+    const entry = results[selectedIdx];
     if (!entry) return;
     if (ev.shiftKey) {
       await copyToClipboard(entry.account);
       showStatus("アカウントをコピーしました");
     } else {
       await copyToClipboard(entry.password);
-      getCurrentWindow().minimize();
+      showStatus("パスワードをコピーしました");
+      setTimeout(() => getCurrentWindow().minimize(), 600);
     }
   } else if (ev.key === "Escape") {
     input.value = "";
