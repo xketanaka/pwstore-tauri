@@ -64,6 +64,6 @@ export const api = {
   getCategories:        ()                                     => invoke<string[]>("get_categories"),
   setCategories:        (categories: string[])                 => invoke<void>("set_categories", { categories }),
   // Google Drive 同期
-  driveUpload:          ()                                     => invoke<void>("drive_upload"),
   driveDownload:        ()                                     => invoke<void>("drive_download"),
+  driveSync:            ()                                     => invoke<void>("drive_sync"),
 };

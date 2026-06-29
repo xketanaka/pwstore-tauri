@@ -47,6 +47,19 @@ pub(crate) fn build_multipart_body(data: &[u8], file_name: &str, boundary: &str)
     body
 }
 
+// ---- 変更検出ヘルパー ----
+
+/// エントリ一覧の FNV-1a ハッシュ（変更検出用、非暗号）
+pub(crate) fn entries_hash(entries: &[crate::models::Entry]) -> String {
+    let mut sorted = entries.to_vec();
+    sorted.sort_by_key(|e| e.id);
+    let json = serde_json::to_string(&sorted).unwrap_or_default();
+    let h = json.bytes().fold(14695981039346656037u64, |acc, b| {
+        acc.wrapping_mul(1099511628211).wrapping_add(b as u64)
+    });
+    format!("{:016x}", h)
+}
+
 // ---- HTTP ヘルパー ----
 
 async fn refresh_access_token(app: &AppHandle) -> Result<String, String> {
@@ -87,80 +100,12 @@ async fn find_file_id(access_token: &str) -> Result<Option<String>, String> {
     parse_file_id(&res.json().await.map_err(|e| e.to_string())?)
 }
 
-// ---- Tauriコマンド ----
-
-/// ローカルの data.enc を Google Drive にアップロード（存在すれば上書き）
-#[tauri::command]
-pub async fn drive_upload(app: AppHandle) -> Result<(), String> {
-    let access_token = refresh_access_token(&app).await?;
-
-    let data_path = commands::data_file_path(&app)?;
-    if !data_path.exists() {
-        return Err("アップロードするデータがありません".to_string());
-    }
-    let data = std::fs::read(&data_path).map_err(|e| e.to_string())?;
-
-    let client = reqwest::Client::new();
-
-    match find_file_id(&access_token).await? {
-        Some(id) => {
-            // 既存ファイルをメディアアップロードで更新
-            let res = client
-                .patch(format!("{}/{}", DRIVE_UPLOAD_URL, id))
-                .query(&[("uploadType", "media")])
-                .bearer_auth(&access_token)
-                .header("Content-Type", "application/octet-stream")
-                .body(data)
-                .send()
-                .await
-                .map_err(|e| e.to_string())?;
-
-            let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
-            if let Some(err) = json.get("error") {
-                return Err(format!("アップロードエラー: {}", err));
-            }
-        }
-        None => {
-            // 新規作成（multipart: JSON メタデータ + バイナリ）
-            let boundary = "pwstore_drive_boundary";
-            let body = build_multipart_body(&data, DATA_FILE_NAME, boundary);
-
-            let res = client
-                .post(DRIVE_UPLOAD_URL)
-                .query(&[("uploadType", "multipart")])
-                .bearer_auth(&access_token)
-                .header(
-                    "Content-Type",
-                    format!("multipart/related; boundary={}", boundary),
-                )
-                .body(body)
-                .send()
-                .await
-                .map_err(|e| e.to_string())?;
-
-            let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
-            if let Some(err) = json.get("error") {
-                return Err(format!("アップロードエラー: {}", err));
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Google Drive から data.enc をダウンロードしてローカルに上書き・AppState を再読み込み
-#[tauri::command]
-pub async fn drive_download(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
-    let access_token = refresh_access_token(&app).await?;
-
-    let file_id = find_file_id(&access_token)
-        .await?
-        .ok_or("Driveにデータが見つかりません")?;
-
+/// Drive からファイルの生バイトを取得する
+async fn fetch_raw(access_token: &str, file_id: &str) -> Result<Vec<u8>, String> {
     let client = reqwest::Client::new();
     let res = client
         .get(format!("{}/{}", DRIVE_FILES_URL, file_id))
-        .bearer_auth(&access_token)
+        .bearer_auth(access_token)
         .query(&[("alt", "media")])
         .send()
         .await
@@ -169,14 +114,154 @@ pub async fn drive_download(app: AppHandle, state: State<'_, AppState>) -> Resul
     if !res.status().is_success() {
         return Err(format!("ダウンロードエラー: HTTP {}", res.status()));
     }
+    Ok(res.bytes().await.map_err(|e| e.to_string())?.to_vec())
+}
 
-    let data = res.bytes().await.map_err(|e| e.to_string())?;
+/// ローカルの data.enc を Drive にアップロードする（file_id があれば更新、なければ新規作成）
+async fn upload_to_drive(access_token: &str, data: Vec<u8>, file_id: Option<&str>) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let json: serde_json::Value = match file_id {
+        Some(id) => {
+            let res = client
+                .patch(format!("{}/{}", DRIVE_UPLOAD_URL, id))
+                .query(&[("uploadType", "media")])
+                .bearer_auth(access_token)
+                .header("Content-Type", "application/octet-stream")
+                .body(data)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            res.json().await.map_err(|e| e.to_string())?
+        }
+        None => {
+            let boundary = "pwstore_drive_boundary";
+            let body = build_multipart_body(&data, DATA_FILE_NAME, boundary);
+            let res = client
+                .post(DRIVE_UPLOAD_URL)
+                .query(&[("uploadType", "multipart")])
+                .bearer_auth(access_token)
+                .header("Content-Type", format!("multipart/related; boundary={}", boundary))
+                .body(body)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            res.json().await.map_err(|e| e.to_string())?
+        }
+    };
+    if let Some(err) = json.get("error") {
+        return Err(format!("アップロードエラー: {}", err));
+    }
+    Ok(())
+}
 
-    let data_path = commands::data_file_path(&app)?;
-    std::fs::write(&data_path, &data).map_err(|e| e.to_string())?;
+// ---- Tauriコマンド ----
 
-    // ダウンロードしたデータで AppState を再読み込み
+/// 起動時ダウンロード: Drive のデータでローカルを上書きし sync_hash を記録
+#[tauri::command]
+pub async fn drive_download(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let access_token = refresh_access_token(&app).await?;
+    let file_id = find_file_id(&access_token)
+        .await?
+        .ok_or("Driveにデータが見つかりません")?;
+
+    let data = fetch_raw(&access_token, &file_id).await?;
+    std::fs::write(commands::data_file_path(&app)?, &data).map_err(|e| e.to_string())?;
     commands::do_unlock(&app, &state)?;
+
+    let hash = {
+        let guard = state.store.lock().unwrap();
+        guard.as_ref().map(|s| entries_hash(&s.entries)).unwrap_or_default()
+    };
+    let _ = commands::save_secret(&app, "sync_hash", &hash);
+    Ok(())
+}
+
+/// 同期: ダウンロード→競合チェック→アップロード
+#[tauri::command]
+pub async fn drive_sync(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let access_token = refresh_access_token(&app).await?;
+
+    let local_hash = {
+        let guard = state.store.lock().unwrap();
+        let store = guard.as_ref().ok_or("ストアがロックされています")?;
+        entries_hash(&store.entries)
+    };
+    let last_hash = commands::load_secret(&app, "sync_hash").ok();
+    let file_id = find_file_id(&access_token).await?;
+
+    match file_id {
+        None => {
+            // Drive にファイルなし → そのままアップロード
+            let data = std::fs::read(commands::data_file_path(&app)?).map_err(|e| e.to_string())?;
+            upload_to_drive(&access_token, data, None).await?;
+            commands::save_secret(&app, "sync_hash", &local_hash)?;
+        }
+        Some(ref id) => {
+            let drive_raw = fetch_raw(&access_token, id).await?;
+
+            // Drive データを復号してハッシュ計算
+            let drive_hash = {
+                let guard = state.passphrase.lock().unwrap();
+                let passphrase = guard.as_ref().ok_or("パスフレーズが設定されていません")?;
+                let json = crate::crypto::decrypt(&drive_raw, passphrase)?;
+                let store: crate::models::DataStore =
+                    serde_json::from_slice(&json).map_err(|e| e.to_string())?;
+                entries_hash(&store.entries)
+            };
+
+            if drive_hash == local_hash {
+                // 差分なし → ハッシュだけ保存して終了
+                commands::save_secret(&app, "sync_hash", &local_hash)?;
+                return Ok(());
+            }
+
+            match last_hash.as_deref() {
+                Some(last) => {
+                    let drive_changed = drive_hash != last;
+                    let local_changed = local_hash != last;
+
+                    if drive_changed && local_changed {
+                        return Err(
+                            "競合が検出されました。他のデバイスでも変更が行われています。".to_string(),
+                        );
+                    }
+
+                    if drive_changed {
+                        // Drive だけ変更 → ダウンロードしてローカル更新
+                        std::fs::write(commands::data_file_path(&app)?, &drive_raw)
+                            .map_err(|e| e.to_string())?;
+                        commands::do_unlock(&app, &state)?;
+                        commands::save_secret(&app, "sync_hash", &drive_hash)?;
+                        return Ok(());
+                    }
+
+                    // ローカルだけ変更 → アップロード
+                    let data = std::fs::read(commands::data_file_path(&app)?)
+                        .map_err(|e| e.to_string())?;
+                    upload_to_drive(&access_token, data, Some(id)).await?;
+                    commands::save_secret(&app, "sync_hash", &local_hash)?;
+                }
+                None => {
+                    // 同期履歴なし（初回同期）
+                    let local_empty = {
+                        let guard = state.store.lock().unwrap();
+                        guard.as_ref().map(|s| s.entries.is_empty()).unwrap_or(true)
+                    };
+                    if local_empty {
+                        // ローカルが空 → Drive データをダウンロード
+                        std::fs::write(commands::data_file_path(&app)?, &drive_raw)
+                            .map_err(|e| e.to_string())?;
+                        commands::do_unlock(&app, &state)?;
+                        commands::save_secret(&app, "sync_hash", &drive_hash)?;
+                    } else {
+                        return Err(
+                            "競合が検出されました。Driveとローカルにそれぞれデータがあります。".to_string(),
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     Ok(())
 }

@@ -39,8 +39,8 @@ pub fn run() {
             oauth::start_oauth,
             oauth::handle_oauth_callback,
             // Google Drive 同期
-            drive::drive_upload,
             drive::drive_download,
+            drive::drive_sync,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

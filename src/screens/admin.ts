@@ -27,11 +27,8 @@ export function initAdminScreen(): void {
       showEntryForm(null);
     });
 
-  document.querySelector<HTMLButtonElement>("#admin-drive-upload-btn")
-    ?.addEventListener("click", () => handleDriveSync("upload"));
-
-  document.querySelector<HTMLButtonElement>("#admin-drive-download-btn")
-    ?.addEventListener("click", () => handleDriveSync("download"));
+  document.querySelector<HTMLButtonElement>("#admin-drive-sync-btn")
+    ?.addEventListener("click", () => handleSync());
 }
 
 async function resizeForAdmin(): Promise<void> {
@@ -351,7 +348,7 @@ function setupFormHandlers(entry: Entry | null): void {
       await refresh();
       const found = allEntries.find((e) => e.id === saved.id) ?? saved;
       showEntryForm(found);
-      autoUpload();
+      autoSync();
     } catch (err) {
       showError(errorEl, `保存エラー: ${err}`);
     }
@@ -366,7 +363,7 @@ function setupFormHandlers(entry: Entry | null): void {
       selectedEntryId = null;
       await refresh();
       showPlaceholder();
-      autoUpload();
+      autoSync();
     } catch (err) {
       showError(errorEl, `削除エラー: ${err}`);
     }
@@ -384,50 +381,37 @@ function collectExtraFields(form: HTMLFormElement): ExtraField[] {
   return result;
 }
 
-// ---- Drive Auto-Upload ----
+// ---- Drive Sync ----
 
-async function autoUpload(): Promise<void> {
-  showAdminStatus("Driveに同期中...");
+async function doSync(): Promise<void> {
+  showAdminStatus("Driveと同期中...");
+  await api.driveSync();
+  // Drive側の変更を受け取った場合に備えてリフレッシュ
+  await refresh();
+  showAdminStatus("同期完了");
+  setTimeout(() => {
+    const el = document.querySelector<HTMLElement>("#admin-status")!;
+    el.hidden = true;
+  }, 2000);
+}
+
+async function handleSync(): Promise<void> {
+  const btn = document.querySelector<HTMLButtonElement>("#admin-drive-sync-btn")!;
+  btn.disabled = true;
   try {
-    await api.driveUpload();
-    showAdminStatus("Drive同期完了");
-    setTimeout(() => {
-      const el = document.querySelector<HTMLElement>("#admin-status")!;
-      el.hidden = true;
-    }, 2000);
+    await doSync();
   } catch (err) {
-    showAdminStatusError(`Drive同期エラー: ${err}`);
+    showAdminStatusError(`同期エラー: ${err}`);
+  } finally {
+    btn.disabled = false;
   }
 }
 
-// ---- Drive Sync ----
-
-async function handleDriveSync(direction: "upload" | "download"): Promise<void> {
-  const uploadBtn = document.querySelector<HTMLButtonElement>("#admin-drive-upload-btn")!;
-  const downloadBtn = document.querySelector<HTMLButtonElement>("#admin-drive-download-btn")!;
-  uploadBtn.disabled = true;
-  downloadBtn.disabled = true;
-
-  const label = direction === "upload" ? "アップロード" : "ダウンロード";
-  showAdminStatus(`Drive ${label}中...`);
-
+async function autoSync(): Promise<void> {
   try {
-    if (direction === "upload") {
-      await api.driveUpload();
-    } else {
-      await api.driveDownload();
-      await refresh();
-    }
-    showAdminStatus(`Drive ${label}完了`);
-    setTimeout(() => {
-      const el = document.querySelector<HTMLElement>("#admin-status")!;
-      el.hidden = true;
-    }, 2000);
+    await doSync();
   } catch (err) {
-    showAdminStatusError(`Drive ${label}エラー: ${err}`);
-  } finally {
-    uploadBtn.disabled = false;
-    downloadBtn.disabled = false;
+    showAdminStatusError(`同期エラー: ${err}`);
   }
 }
 
