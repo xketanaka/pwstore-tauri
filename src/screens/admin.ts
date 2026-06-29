@@ -262,10 +262,12 @@ function buildFormHTML(entry: Entry | null): string {
 }
 
 function extraFieldHTML(f: ExtraField, i: number): string {
+  const enabled = f.key_name !== "";
   return `
     <div class="extra-field" data-index="${i}">
-      <input type="text" class="extra-key" placeholder="項目名" value="${esc(f.key_name)}" autocomplete="off" />
-      <input type="${f.encrypted ? "password" : "text"}" class="extra-val" placeholder="値" value="${esc(f.value)}" autocomplete="off" />
+      <input type="checkbox" class="extra-enabled" ${enabled ? "checked" : ""} title="この項目を使用する" />
+      <input type="text" class="extra-key" placeholder="項目名" value="${esc(f.key_name)}" ${enabled ? "" : "disabled"} autocomplete="off" />
+      <input type="${f.encrypted ? "password" : "text"}" class="extra-val" placeholder="値" value="${esc(f.value)}" ${enabled ? "" : "disabled"} autocomplete="off" />
       <label class="extra-enc-label" title="暗号化して保存">
         <input type="checkbox" class="extra-enc" ${f.encrypted ? "checked" : ""} />
         🔒
@@ -282,6 +284,25 @@ function setupFormHandlers(entry: Entry | null): void {
   form.querySelector<HTMLButtonElement>(".btn-show-pass")?.addEventListener("click", () => {
     const input = form.querySelector<HTMLInputElement>(".password-input")!;
     input.type = input.type === "password" ? "text" : "password";
+  });
+
+  // 拡張フィールドの有効/無効チェック
+  form.querySelectorAll<HTMLInputElement>(".extra-enabled").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const row = cb.closest<HTMLElement>(".extra-field")!;
+      const key = row.querySelector<HTMLInputElement>(".extra-key")!;
+      const val = row.querySelector<HTMLInputElement>(".extra-val")!;
+      if (cb.checked) {
+        key.disabled = false;
+        val.disabled = false;
+        key.focus();
+      } else {
+        key.value = "";
+        val.value = "";
+        key.disabled = true;
+        val.disabled = true;
+      }
+    });
   });
 
   // 拡張フィールドの暗号化チェックで input type を切り替え
