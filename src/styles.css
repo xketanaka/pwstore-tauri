@@ -167,6 +167,7 @@ input:focus {
 .screen-search {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .search-bar {
@@ -246,12 +247,17 @@ input:focus {
 .btn-small:hover { border-color: var(--accent); color: var(--accent); }
 
 .search-status {
+  position: absolute;
+  top: 56px;
+  left: 0;
+  right: 0;
   padding: 4px 12px;
   font-size: 12px;
   color: var(--success);
   background: var(--surface);
   text-align: center;
   border-bottom: 1px solid var(--border);
+  z-index: 10;
 }
 .search-status-error {
   color: var(--danger);
