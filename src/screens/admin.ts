@@ -265,7 +265,10 @@ function extraFieldHTML(f: ExtraField, i: number): string {
   const enabled = f.key_name !== "";
   return `
     <div class="extra-field" data-index="${i}">
-      <input type="checkbox" class="extra-enabled" ${enabled ? "checked" : ""} title="この項目を使用する" />
+      <label class="extra-toggle" title="この項目を使用する">
+        <input type="checkbox" class="extra-enabled" ${enabled ? "checked" : ""} />
+        <span class="extra-toggle-track"></span>
+      </label>
       <input type="text" class="extra-key" placeholder="項目名" value="${esc(f.key_name)}" ${enabled ? "" : "disabled"} autocomplete="off" />
       <input type="${f.encrypted ? "password" : "text"}" class="extra-val" placeholder="値" value="${esc(f.value)}" ${enabled ? "" : "disabled"} autocomplete="off" />
       <label class="extra-enc-label" title="暗号化して保存">

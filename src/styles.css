@@ -485,12 +485,49 @@ textarea:focus { border-color: var(--accent); }
   font-size: 13px;
 }
 
-.extra-enabled {
+.extra-toggle {
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
   cursor: pointer;
-  margin: 0;
+}
+
+.extra-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.extra-toggle-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: var(--border);
+  transition: background 0.2s;
+}
+
+.extra-toggle-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.2s;
+}
+
+.extra-toggle input:checked + .extra-toggle-track {
+  background: var(--accent);
+}
+
+.extra-toggle input:checked + .extra-toggle-track::after {
+  transform: translateX(14px);
 }
 
 .extra-key:disabled,
