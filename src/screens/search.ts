@@ -13,12 +13,6 @@ let selectedIdx = -1;
 export function initSearchScreen(): void {
   const input = document.querySelector<HTMLInputElement>("#search-input")!;
 
-  document.querySelector<HTMLButtonElement>("#search-drive-upload-btn")
-    ?.addEventListener("click", () => handleDriveSync("upload"));
-
-  document.querySelector<HTMLButtonElement>("#search-drive-download-btn")
-    ?.addEventListener("click", () => handleDriveSync("download"));
-
   document.querySelector<HTMLButtonElement>("#search-admin-btn")
     ?.addEventListener("click", () => showAdminScreen());
 
@@ -155,32 +149,6 @@ function updateSelection(): void {
   });
 }
 
-// ---- Drive Sync ----
-
-async function handleDriveSync(direction: "upload" | "download"): Promise<void> {
-  const uploadBtn = document.querySelector<HTMLButtonElement>("#search-drive-upload-btn")!;
-  const downloadBtn = document.querySelector<HTMLButtonElement>("#search-drive-download-btn")!;
-  uploadBtn.disabled = true;
-  downloadBtn.disabled = true;
-
-  const label = direction === "upload" ? "アップロード" : "ダウンロード";
-  showStatus(`Drive ${label}中...`);
-
-  try {
-    if (direction === "upload") {
-      await api.driveUpload();
-    } else {
-      await api.driveDownload();
-    }
-    showStatus(`Drive ${label}完了`);
-  } catch (err) {
-    showStatusError(`Drive ${label}エラー: ${err}`);
-  } finally {
-    uploadBtn.disabled = false;
-    downloadBtn.disabled = false;
-  }
-}
-
 // ---- Utilities ----
 
 function setResultsVisible(visible: boolean): void {
@@ -198,15 +166,6 @@ function showStatus(msg: string): void {
   el.className = "search-status";
   el.hidden = false;
   setTimeout(() => { el.hidden = true; }, 1500);
-}
-
-function showStatusError(msg: string): void {
-  const el = document.querySelector<HTMLElement>("#search-status")!;
-  el.textContent = msg;
-  el.className = "search-status search-status-error";
-  el.hidden = false;
-  // クリックで閉じる
-  el.onclick = () => { el.hidden = true; el.onclick = null; };
 }
 
 function esc(s: string): string {

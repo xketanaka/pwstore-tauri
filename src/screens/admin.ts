@@ -19,6 +19,12 @@ export function initAdminScreen(): void {
       renderServices();
       showEntryForm(null);
     });
+
+  document.querySelector<HTMLButtonElement>("#admin-drive-upload-btn")
+    ?.addEventListener("click", () => handleDriveSync("upload"));
+
+  document.querySelector<HTMLButtonElement>("#admin-drive-download-btn")
+    ?.addEventListener("click", () => handleDriveSync("download"));
 }
 
 export async function showAdminScreen(): Promise<void> {
@@ -265,6 +271,52 @@ function collectExtraFields(form: HTMLFormElement): ExtraField[] {
     if (key) result.push({ key_name: key, value: val, encrypted: enc });
   });
   return result;
+}
+
+// ---- Drive Sync ----
+
+async function handleDriveSync(direction: "upload" | "download"): Promise<void> {
+  const uploadBtn = document.querySelector<HTMLButtonElement>("#admin-drive-upload-btn")!;
+  const downloadBtn = document.querySelector<HTMLButtonElement>("#admin-drive-download-btn")!;
+  uploadBtn.disabled = true;
+  downloadBtn.disabled = true;
+
+  const label = direction === "upload" ? "アップロード" : "ダウンロード";
+  showAdminStatus(`Drive ${label}中...`);
+
+  try {
+    if (direction === "upload") {
+      await api.driveUpload();
+    } else {
+      await api.driveDownload();
+      await refresh();
+    }
+    showAdminStatus(`Drive ${label}完了`);
+    setTimeout(() => {
+      const el = document.querySelector<HTMLElement>("#admin-status")!;
+      el.hidden = true;
+    }, 2000);
+  } catch (err) {
+    showAdminStatusError(`Drive ${label}エラー: ${err}`);
+  } finally {
+    uploadBtn.disabled = false;
+    downloadBtn.disabled = false;
+  }
+}
+
+function showAdminStatus(msg: string): void {
+  const el = document.querySelector<HTMLElement>("#admin-status")!;
+  el.textContent = msg;
+  el.className = "admin-status";
+  el.hidden = false;
+}
+
+function showAdminStatusError(msg: string): void {
+  const el = document.querySelector<HTMLElement>("#admin-status")!;
+  el.textContent = msg;
+  el.className = "admin-status admin-status-error";
+  el.hidden = false;
+  el.onclick = () => { el.hidden = true; el.onclick = null; };
 }
 
 // ---- Utilities ----

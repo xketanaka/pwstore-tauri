@@ -95,8 +95,6 @@
           autocomplete="off"
           spellcheck="false"
         />
-        <button id="search-drive-upload-btn" class="btn-icon" title="Driveにアップロード">↑</button>
-        <button id="search-drive-download-btn" class="btn-icon" title="Driveからダウンロード">↓</button>
         <button id="search-admin-btn" class="btn-icon" title="管理画面">⚙</button>
       </div>
       <div id="search-status" class="search-status" hidden></div>
@@ -107,18 +105,21 @@
     <div data-screen="admin" class="screen screen-admin" hidden>
       <div class="admin-toolbar">
         <span class="admin-title">pwstore 管理</span>
-        <button id="admin-back-btn" class="btn-icon" title="検索画面へ">✕</button>
+        <div class="admin-toolbar-actions">
+          <button id="admin-drive-upload-btn" class="btn-icon" title="Driveにアップロード">↑</button>
+          <button id="admin-drive-download-btn" class="btn-icon" title="Driveからダウンロード">↓</button>
+          <button id="admin-new-btn" class="btn-icon" title="新規エントリ">＋</button>
+          <button id="admin-back-btn" class="btn-icon" title="検索画面へ">✕</button>
+        </div>
       </div>
+      <div id="admin-status" class="admin-status" hidden></div>
       <div class="admin-panes">
         <div class="pane pane-category">
           <div class="pane-header">カテゴリ</div>
           <ul id="category-list" class="pane-list"></ul>
         </div>
         <div class="pane pane-service">
-          <div class="pane-header">
-            <span>サービス</span>
-            <button id="admin-new-btn" class="btn-icon pane-header-btn" title="新規エントリ">＋</button>
-          </div>
+          <div class="pane-header">サービス</div>
           <ul id="service-list" class="pane-list"></ul>
         </div>
         <div class="pane pane-detail">

@@ -254,6 +254,27 @@ input:focus {
   word-break: break-all;
 }
 
+.admin-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.admin-status {
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--success);
+  background: var(--surface);
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-status-error {
+  color: var(--danger);
+  cursor: pointer;
+  word-break: break-all;
+}
+
 /* ---- 管理画面 ---- */
 .screen-admin {
   display: flex;
