@@ -34,14 +34,22 @@ export function initAdminScreen(): void {
     ?.addEventListener("click", () => handleDriveSync("download"));
 }
 
+async function resizeForAdmin(): Promise<void> {
+  try {
+    await getCurrentWindow().setSize(new LogicalSize(ADMIN_W, ADMIN_H));
+  } catch (e) {
+    console.warn("admin resize failed:", e);
+  }
+}
+
 export async function showAdminScreen(): Promise<void> {
-  await getCurrentWindow().setSize(new LogicalSize(ADMIN_W, ADMIN_H));
+  await resizeForAdmin();
   showScreen("admin");
   await refresh();
 }
 
 export async function showAdminScreenWithEntry(entry: Entry): Promise<void> {
-  await getCurrentWindow().setSize(new LogicalSize(ADMIN_W, ADMIN_H));
+  await resizeForAdmin();
   showScreen("admin");
   await refresh();
   selectedEntryId = entry.id;
