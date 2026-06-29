@@ -1,5 +1,10 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 import { api, Entry, ExtraField } from "../api.ts";
 import { showScreen } from "../router.ts";
+
+const ADMIN_W = 960;
+const ADMIN_H = 975;
 
 // ---- State ----
 
@@ -30,11 +35,13 @@ export function initAdminScreen(): void {
 }
 
 export async function showAdminScreen(): Promise<void> {
+  await getCurrentWindow().setSize(new LogicalSize(ADMIN_W, ADMIN_H));
   showScreen("admin");
   await refresh();
 }
 
 export async function showAdminScreenWithEntry(entry: Entry): Promise<void> {
+  await getCurrentWindow().setSize(new LogicalSize(ADMIN_W, ADMIN_H));
   showScreen("admin");
   await refresh();
   selectedEntryId = entry.id;

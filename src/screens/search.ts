@@ -1,7 +1,20 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 import { api, Entry } from "../api.ts";
 import { onScreenShow } from "../router.ts";
 import { showAdminScreen, showAdminScreenWithEntry } from "./admin.ts";
+
+const SEARCH_W = 480;
+const SEARCH_BAR_H = 56;
+const ITEM_H = 45;
+const MAX_RESULTS_H = 380;
+
+function resizeToFit(resultCount: number): void {
+  const height = resultCount > 0
+    ? SEARCH_BAR_H + Math.min(resultCount * ITEM_H, MAX_RESULTS_H)
+    : SEARCH_BAR_H;
+  getCurrentWindow().setSize(new LogicalSize(SEARCH_W, height));
+}
 
 // ---- State ----
 
@@ -162,6 +175,7 @@ function updateSelection(): void {
 function setResultsVisible(visible: boolean): void {
   const list = document.querySelector<HTMLUListElement>("#search-results")!;
   list.hidden = !visible;
+  resizeToFit(visible ? results.length : 0);
 }
 
 async function copyToClipboard(text: string): Promise<void> {
