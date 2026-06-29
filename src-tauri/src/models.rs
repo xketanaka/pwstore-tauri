@@ -30,11 +30,13 @@ pub struct Entry {
 pub struct DataStore {
     pub version: u32,
     pub entries: Vec<Entry>,
+    #[serde(default)]
+    pub categories: Vec<String>,
 }
 
 impl DataStore {
     pub fn new() -> Self {
-        Self { version: 1, entries: vec![] }
+        Self { version: 1, entries: vec![], categories: vec![] }
     }
 }
 

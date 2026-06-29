@@ -60,6 +60,9 @@ export const api = {
   getClientSecret:      ()                                     => invoke<string>("get_client_secret"),
   startOauth:           ()                                     => invoke<void>("start_oauth"),
   handleOauthCallback:  (url: string)                         => invoke<void>("handle_oauth_callback", { url }),
+  // カテゴリ
+  getCategories:        ()                                     => invoke<string[]>("get_categories"),
+  setCategories:        (categories: string[])                 => invoke<void>("set_categories", { categories }),
   // Google Drive 同期
   driveUpload:          ()                                     => invoke<void>("drive_upload"),
   driveDownload:        ()                                     => invoke<void>("drive_download"),

@@ -208,6 +208,25 @@ pub fn export_flat(state: State<'_, AppState>) -> Result<Vec<FlatEntry>, String>
 }
 
 #[tauri::command]
+pub fn get_categories(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let guard = state.store.lock().unwrap();
+    let store = guard.as_ref().ok_or("ストアがロックされています")?;
+    Ok(store.categories.clone())
+}
+
+#[tauri::command]
+pub fn set_categories(
+    app: AppHandle,
+    categories: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut guard = state.store.lock().unwrap();
+    let store = guard.as_mut().ok_or("ストアがロックされています")?;
+    store.categories = categories;
+    persist(&app, store, &state)
+}
+
+#[tauri::command]
 pub fn generate_otp(otp_uri: String) -> Result<(String, u64), String> {
     let totp = totp_rs::TOTP::from_url(&otp_uri).map_err(|e| e.to_string())?;
     let code = totp.generate_current().map_err(|e| e.to_string())?;

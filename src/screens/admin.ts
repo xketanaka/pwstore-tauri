@@ -4,8 +4,10 @@ import { showScreen } from "../router.ts";
 // ---- State ----
 
 let allEntries: Entry[] = [];
+let allCategories: string[] = [];
 let selectedCategory: string | null = null;  // null = すべて
 let selectedEntryId: number | null = null;
+let categoryEditMode = false;
 
 // ---- Public API ----
 
@@ -48,7 +50,10 @@ export async function showAdminScreenWithEntry(entry: Entry): Promise<void> {
 // ---- Data ----
 
 async function refresh(): Promise<void> {
-  allEntries = await api.searchEntries("");
+  [allEntries, allCategories] = await Promise.all([
+    api.searchEntries(""),
+    api.getCategories(),
+  ]);
   renderCategories();
   renderServices();
 }
@@ -56,9 +61,28 @@ async function refresh(): Promise<void> {
 // ---- Category Pane ----
 
 function renderCategories(): void {
+  const header = document.querySelector<HTMLElement>(".pane-category .pane-header")!;
   const list = document.querySelector<HTMLUListElement>("#category-list")!;
-  list.innerHTML = "";
 
+  if (categoryEditMode) {
+    header.innerHTML = `<span>カテゴリ編集</span><button class="btn-icon pane-header-btn" id="category-done-btn">完了</button>`;
+    document.querySelector<HTMLButtonElement>("#category-done-btn")!.addEventListener("click", () => {
+      categoryEditMode = false;
+      renderCategories();
+    });
+    renderCategoryEdit(list);
+  } else {
+    header.innerHTML = `<span>カテゴリ</span><button class="btn-icon pane-header-btn" id="category-edit-btn">✏</button>`;
+    document.querySelector<HTMLButtonElement>("#category-edit-btn")!.addEventListener("click", () => {
+      categoryEditMode = true;
+      renderCategories();
+    });
+    renderCategoryList(list);
+  }
+}
+
+function renderCategoryList(list: HTMLUListElement): void {
+  list.innerHTML = "";
   const cats = [...new Set(allEntries.map((e) => e.category || "(なし)"))].sort();
 
   for (const cat of ["(すべて)", ...cats]) {
@@ -77,6 +101,46 @@ function renderCategories(): void {
     });
     list.appendChild(li);
   }
+}
+
+function renderCategoryEdit(list: HTMLUListElement): void {
+  list.innerHTML = "";
+
+  for (const cat of allCategories) {
+    const li = document.createElement("li");
+    li.className = "category-edit-item";
+    li.innerHTML = `
+      <span class="category-edit-name">${esc(cat)}</span>
+      <button class="btn-icon pane-header-btn">✕</button>
+    `;
+    li.querySelector("button")!.addEventListener("click", async () => {
+      allCategories = allCategories.filter((c) => c !== cat);
+      await api.setCategories(allCategories);
+      renderCategoryEdit(list);
+    });
+    list.appendChild(li);
+  }
+
+  const addLi = document.createElement("li");
+  addLi.className = "category-add-item";
+  addLi.innerHTML = `
+    <input type="text" class="category-new-input" placeholder="新しいカテゴリ" />
+    <button class="btn-icon pane-header-btn">＋</button>
+  `;
+  list.appendChild(addLi);
+
+  const input = addLi.querySelector<HTMLInputElement>(".category-new-input")!;
+  const addBtn = addLi.querySelector<HTMLButtonElement>("button")!;
+
+  const addCategory = async () => {
+    const name = input.value.trim();
+    if (!name || allCategories.includes(name)) { input.focus(); return; }
+    allCategories = [...allCategories, name];
+    await api.setCategories(allCategories);
+    renderCategoryEdit(list);
+  };
+  addBtn.addEventListener("click", addCategory);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addCategory(); } });
 }
 
 // ---- Service Pane ----
@@ -146,7 +210,11 @@ function buildFormHTML(entry: Entry | null): string {
       </div>
       <div class="form-row">
         <label>カテゴリ</label>
-        <input type="text" name="category" value="${esc(e.category)}" autocomplete="off" />
+        <select name="category">
+          <option value="">（未分類）</option>
+          ${allCategories.map((c) => `<option value="${esc(c)}"${c === e.category ? " selected" : ""}>${esc(c)}</option>`).join("")}
+          ${e.category && !allCategories.includes(e.category) ? `<option value="${esc(e.category)}" selected>${esc(e.category)}</option>` : ""}
+        </select>
       </div>
       <div class="form-row">
         <label>キーワード</label>

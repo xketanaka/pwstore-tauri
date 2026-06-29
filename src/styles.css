@@ -101,7 +101,8 @@ body {
 
 input[type="text"],
 input[type="email"],
-input[type="password"] {
+input[type="password"],
+select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -345,6 +346,32 @@ input:focus {
 .pane-list li.active {
   background: var(--accent);
   color: #fff;
+}
+
+.category-edit-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.category-edit-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-add-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.category-new-input {
+  flex: 1;
+  padding: 5px 8px !important;
+  font-size: 12px !important;
 }
 
 .entry-detail {
