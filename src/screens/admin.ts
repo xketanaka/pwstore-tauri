@@ -158,7 +158,9 @@ function renderServices(): void {
 
   for (const entry of filteredEntries()) {
     const li = document.createElement("li");
-    li.textContent = entry.service_name;
+    li.textContent = entry.account
+      ? `${entry.service_name} (${entry.account})`
+      : entry.service_name;
     li.title = entry.account;
     if (entry.id === selectedEntryId) li.classList.add("active");
     li.addEventListener("click", () => {
