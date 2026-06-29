@@ -15,7 +15,7 @@
       {
         "title": "pwstore",
         "width": 480,
-        "height": 650,
+        "height": 56,
         "resizable": true,
         "center": true
       }
