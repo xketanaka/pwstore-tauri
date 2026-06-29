@@ -122,7 +122,7 @@ function renderResults(): void {
       <span class="result-service">${esc(entry.service_name)}</span>
       <div class="result-right">
         <span class="result-account">${esc(entry.account)}</span>
-        ${entry.otp_uri ? `<button class="btn-small btn-otp" data-i="${i}">OTP</button>` : ""}
+        <button class="btn-small btn-otp" data-i="${i}"${entry.otp_uri ? "" : " disabled"}>OTP</button>
         <button class="btn-small btn-detail" data-i="${i}">詳細</button>
       </div>
     `;
