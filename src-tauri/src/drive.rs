@@ -33,9 +33,17 @@ pub(crate) fn parse_file_id(json: &serde_json::Value) -> Result<Option<String>, 
         .map(|s| s.to_string()))
 }
 
-/// multipart/related ボディを構築する
-pub(crate) fn build_multipart_body(data: &[u8], file_name: &str, boundary: &str) -> Vec<u8> {
-    let metadata = format!("{{\"name\":\"{}\"}}", file_name);
+/// multipart/related ボディを構築する（parent_id を指定するとフォルダ内に作成）
+pub(crate) fn build_multipart_body(
+    data: &[u8],
+    file_name: &str,
+    boundary: &str,
+    parent_id: Option<&str>,
+) -> Vec<u8> {
+    let metadata = match parent_id {
+        Some(pid) => format!("{{\"name\":\"{}\",\"parents\":[\"{}\"]}}", file_name, pid),
+        None => format!("{{\"name\":\"{}\"}}", file_name),
+    };
     let mut body = format!(
         "--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n\
          {metadata}\r\n\
@@ -83,13 +91,63 @@ async fn refresh_access_token(app: &AppHandle) -> Result<String, String> {
     parse_access_token(&res.json().await.map_err(|e| e.to_string())?)
 }
 
-async fn find_file_id(access_token: &str) -> Result<Option<String>, String> {
+/// "pwstore" フォルダを検索し、なければ作成して ID を返す
+async fn find_or_create_folder(access_token: &str) -> Result<String, String> {
+    let client = reqwest::Client::new();
+
+    // 既存フォルダを検索
+    let res = client
+        .get(DRIVE_FILES_URL)
+        .bearer_auth(access_token)
+        .query(&[
+            ("q", "name='pwstore' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false"),
+            ("fields", "files(id)"),
+        ])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
+    if let Some(err) = json.get("error") {
+        return Err(format!("フォルダ検索エラー: {}", err));
+    }
+    if let Some(id) = json["files"].as_array()
+        .and_then(|f| f.first())
+        .and_then(|f| f["id"].as_str())
+    {
+        return Ok(id.to_string());
+    }
+
+    // 存在しなければ作成
+    let res = client
+        .post(DRIVE_FILES_URL)
+        .bearer_auth(access_token)
+        .json(&serde_json::json!({
+            "name": "pwstore",
+            "mimeType": "application/vnd.google-apps.folder",
+            "parents": ["root"]
+        }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
+    if let Some(err) = json.get("error") {
+        return Err(format!("フォルダ作成エラー: {}", err));
+    }
+    json["id"].as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "フォルダIDを取得できませんでした".to_string())
+}
+
+/// 指定フォルダ内の data.enc を検索してファイル ID を返す
+async fn find_file_id(access_token: &str, folder_id: &str) -> Result<Option<String>, String> {
     let client = reqwest::Client::new();
     let res = client
         .get(DRIVE_FILES_URL)
         .bearer_auth(access_token)
         .query(&[
-            ("q", format!("name='{}' and trashed=false", DATA_FILE_NAME)),
+            ("q", format!("name='{}' and '{}' in parents and trashed=false", DATA_FILE_NAME, folder_id)),
             ("spaces", "drive".to_string()),
             ("fields", "files(id)".to_string()),
         ])
@@ -117,8 +175,13 @@ async fn fetch_raw(access_token: &str, file_id: &str) -> Result<Vec<u8>, String>
     Ok(res.bytes().await.map_err(|e| e.to_string())?.to_vec())
 }
 
-/// ローカルの data.enc を Drive にアップロードする（file_id があれば更新、なければ新規作成）
-async fn upload_to_drive(access_token: &str, data: Vec<u8>, file_id: Option<&str>) -> Result<(), String> {
+/// ローカルの data.enc を Drive にアップロードする（file_id があれば更新、なければ folder_id 内に新規作成）
+async fn upload_to_drive(
+    access_token: &str,
+    data: Vec<u8>,
+    file_id: Option<&str>,
+    folder_id: &str,
+) -> Result<(), String> {
     let client = reqwest::Client::new();
     let json: serde_json::Value = match file_id {
         Some(id) => {
@@ -135,7 +198,7 @@ async fn upload_to_drive(access_token: &str, data: Vec<u8>, file_id: Option<&str
         }
         None => {
             let boundary = "pwstore_drive_boundary";
-            let body = build_multipart_body(&data, DATA_FILE_NAME, boundary);
+            let body = build_multipart_body(&data, DATA_FILE_NAME, boundary, Some(folder_id));
             let res = client
                 .post(DRIVE_UPLOAD_URL)
                 .query(&[("uploadType", "multipart")])
@@ -160,7 +223,8 @@ async fn upload_to_drive(access_token: &str, data: Vec<u8>, file_id: Option<&str
 #[tauri::command]
 pub async fn drive_download(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let access_token = refresh_access_token(&app).await?;
-    let file_id = find_file_id(&access_token)
+    let folder_id = find_or_create_folder(&access_token).await?;
+    let file_id = find_file_id(&access_token, &folder_id)
         .await?
         .ok_or("Driveにデータが見つかりません")?;
 
@@ -187,13 +251,14 @@ pub async fn drive_sync(app: AppHandle, state: State<'_, AppState>) -> Result<()
         entries_hash(&store.entries)
     };
     let last_hash = commands::load_secret(&app, "sync_hash").ok();
-    let file_id = find_file_id(&access_token).await?;
+    let folder_id = find_or_create_folder(&access_token).await?;
+    let file_id = find_file_id(&access_token, &folder_id).await?;
 
     match file_id {
         None => {
             // Drive にファイルなし → そのままアップロード
             let data = std::fs::read(commands::data_file_path(&app)?).map_err(|e| e.to_string())?;
-            upload_to_drive(&access_token, data, None).await?;
+            upload_to_drive(&access_token, data, None, &folder_id).await?;
             commands::save_secret(&app, "sync_hash", &local_hash)?;
         }
         Some(ref id) => {
@@ -238,7 +303,7 @@ pub async fn drive_sync(app: AppHandle, state: State<'_, AppState>) -> Result<()
                     // ローカルだけ変更 → アップロード
                     let data = std::fs::read(commands::data_file_path(&app)?)
                         .map_err(|e| e.to_string())?;
-                    upload_to_drive(&access_token, data, Some(id)).await?;
+                    upload_to_drive(&access_token, data, Some(id), &folder_id).await?;
                     commands::save_secret(&app, "sync_hash", &local_hash)?;
                 }
                 None => {
@@ -327,7 +392,7 @@ mod tests {
 
     #[test]
     fn build_multipart_body_contains_filename() {
-        let body = build_multipart_body(b"binary_data", "data.enc", "boundary123");
+        let body = build_multipart_body(b"binary_data", "data.enc", "boundary123", None);
         let text = String::from_utf8_lossy(&body);
         assert!(text.contains("\"name\":\"data.enc\""));
     }
@@ -335,13 +400,13 @@ mod tests {
     #[test]
     fn build_multipart_body_contains_data() {
         let data = b"hello world";
-        let body = build_multipart_body(data, "data.enc", "boundary123");
+        let body = build_multipart_body(data, "data.enc", "boundary123", None);
         assert!(body.windows(data.len()).any(|w| w == data));
     }
 
     #[test]
     fn build_multipart_body_uses_boundary() {
-        let body = build_multipart_body(b"x", "f", "my_boundary");
+        let body = build_multipart_body(b"x", "f", "my_boundary", None);
         let text = String::from_utf8_lossy(&body);
         assert!(text.contains("--my_boundary\r\n"));
         assert!(text.contains("--my_boundary--"));
@@ -349,9 +414,23 @@ mod tests {
 
     #[test]
     fn build_multipart_body_has_correct_content_types() {
-        let body = build_multipart_body(b"x", "f", "b");
+        let body = build_multipart_body(b"x", "f", "b", None);
         let text = String::from_utf8_lossy(&body);
         assert!(text.contains("Content-Type: application/json; charset=UTF-8"));
         assert!(text.contains("Content-Type: application/octet-stream"));
+    }
+
+    #[test]
+    fn build_multipart_body_includes_parent_id_when_given() {
+        let body = build_multipart_body(b"x", "data.enc", "b", Some("folder_xyz"));
+        let text = String::from_utf8_lossy(&body);
+        assert!(text.contains("\"parents\":[\"folder_xyz\"]"));
+    }
+
+    #[test]
+    fn build_multipart_body_no_parents_when_none() {
+        let body = build_multipart_body(b"x", "data.enc", "b", None);
+        let text = String::from_utf8_lossy(&body);
+        assert!(!text.contains("parents"));
     }
 }
