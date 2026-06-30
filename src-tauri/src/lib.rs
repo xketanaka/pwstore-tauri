@@ -41,6 +41,7 @@ pub fn run() {
             // Google Drive 同期
             drive::drive_download,
             drive::drive_sync,
+            drive::drive_force_download,
             drive::drive_force_upload,
         ])
         .run(tauri::generate_context!())

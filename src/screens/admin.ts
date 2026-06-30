@@ -423,7 +423,7 @@ async function resolveConflict(): Promise<void> {
     }
   } else if (choice === "drive") {
     try {
-      await api.driveDownload();
+      await api.driveForceDownload();
       await refresh();
       showAdminStatus("Driveのデータを取り込みました");
     } catch (err) {

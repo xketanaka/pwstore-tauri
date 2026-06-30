@@ -32,7 +32,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (String(e).includes("競合")) {
         const choice = await showConflictDialog();
         if (choice === "local") await api.driveForceUpload().catch(console.error);
-        else if (choice === "drive") await api.driveDownload().catch(console.error);
+        else if (choice === "drive") await api.driveForceDownload().catch(console.error);
       } else {
         const el = document.querySelector<HTMLElement>("#search-status");
         if (el) {

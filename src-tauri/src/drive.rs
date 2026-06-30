@@ -285,9 +285,9 @@ pub async fn drive_force_upload(app: AppHandle, state: State<'_, AppState>) -> R
     Ok(())
 }
 
-/// 起動時ダウンロード: Drive のデータでローカルを上書きし sync_hash を記録
+/// Drive のデータでローカルを上書き（競合チェックなし・競合解消専用）
 #[tauri::command]
-pub async fn drive_download(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn drive_force_download(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let access_token = refresh_access_token(&app).await?;
     let folder_id = find_or_create_folder(&access_token).await?;
     let file_id = find_file_id(&access_token, &folder_id)
@@ -303,6 +303,54 @@ pub async fn drive_download(app: AppHandle, state: State<'_, AppState>) -> Resul
         guard.as_ref().map(|s| entries_hash(&s.entries)).unwrap_or_default()
     };
     let _ = commands::save_secret(&app, "sync_hash", &hash);
+    Ok(())
+}
+
+/// ダウンロード: ローカルに未同期の変更があれば競合エラーを返す
+#[tauri::command]
+pub async fn drive_download(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let access_token = refresh_access_token(&app).await?;
+    let folder_id = find_or_create_folder(&access_token).await?;
+    let file_id = find_file_id(&access_token, &folder_id)
+        .await?
+        .ok_or("Driveにデータが見つかりません")?;
+
+    let drive_raw = fetch_raw(&access_token, &file_id).await?;
+
+    let local_hash = {
+        let guard = state.store.lock().unwrap();
+        let store = guard.as_ref().ok_or("ストアがロックされています")?;
+        entries_hash(&store.entries)
+    };
+    let drive_hash = {
+        let guard = state.passphrase.lock().unwrap();
+        let passphrase = guard.as_ref().ok_or("パスフレーズが設定されていません")?;
+        let json = crate::crypto::decrypt(&drive_raw, passphrase)?;
+        let store: crate::models::DataStore =
+            serde_json::from_slice(&json).map_err(|e| e.to_string())?;
+        entries_hash(&store.entries)
+    };
+    let last_hash = commands::load_secret(&app, "sync_hash").ok();
+    let local_empty = {
+        let guard = state.store.lock().unwrap();
+        guard.as_ref().map(|s| s.entries.is_empty()).unwrap_or(true)
+    };
+
+    match decide_sync(&local_hash, Some(&drive_hash), last_hash.as_deref(), local_empty) {
+        SyncDecision::NoOp => {}
+        SyncDecision::Download => {
+            std::fs::write(commands::data_file_path(&app)?, &drive_raw)
+                .map_err(|e| e.to_string())?;
+            commands::do_unlock(&app, &state)?;
+            commands::save_secret(&app, "sync_hash", &drive_hash)?;
+        }
+        SyncDecision::Upload | SyncDecision::Conflict => {
+            return Err(
+                "競合が検出されました。ローカルに未同期の変更があります。".to_string(),
+            );
+        }
+    }
+
     Ok(())
 }
 
