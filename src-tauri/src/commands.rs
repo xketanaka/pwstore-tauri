@@ -71,8 +71,8 @@ pub fn data_file_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 }
 
 
-// ファイル難読化用の固定キー（セキュリティの本質ではなく、プレーンテキスト検索への引っかかりを防ぐ目的）
-const SECRET_FILE_KEY: &str = "b7Qx2#mKpL9vRnYc4dEzWsA0fJhU6tGi";
+// ファイル難読化用キー（セキュリティの本質ではなく、プレーンテキスト検索への引っかかりを防ぐ目的）
+const SECRET_FILE_KEY: &str = env!("SECRET_FILE_KEY");
 
 /// 秘密情報をAES暗号化してファイルに保存する（passphrase / refresh_token など）
 pub fn save_secret(app: &AppHandle, name: &str, value: &str) -> Result<(), String> {

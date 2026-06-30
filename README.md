@@ -20,6 +20,7 @@ Google Cloud Console でプロジェクトを作成し、OAuth 2.0 クライア�
 ```
 GOOGLE_CLIENT_ID=XXXXXXXXXX.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-XXXXXXXXXXXXXXXXXXXXXXXX
+SECRET_FILE_KEY=任意の文字列
 ```
 
 `.env` はビルド時に読み込まれ、バイナリに静的に埋め込まれる（実行時ファイルは不要）。

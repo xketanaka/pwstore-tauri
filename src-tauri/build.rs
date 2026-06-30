@@ -15,7 +15,7 @@ fn main() {
             if let Some((key, value)) = line.split_once('=') {
                 let key = key.trim();
                 let value = value.trim().trim_matches('"').trim_matches('\'');
-                if matches!(key, "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET") {
+                if matches!(key, "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET" | "SECRET_FILE_KEY") {
                     println!("cargo:rustc-env={key}={value}");
                 }
             }
