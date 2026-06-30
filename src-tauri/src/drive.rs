@@ -121,8 +121,6 @@ pub(crate) fn decide_sync(
 
 async fn refresh_access_token(app: &AppHandle) -> Result<String, String> {
     let refresh_token = oauth::get_refresh_token(app)?;
-    let client_id = oauth::get_client_id(app.clone())?;
-    let client_secret = oauth::get_client_secret(app.clone())?;
 
     let client = reqwest::Client::new();
     let res = client
@@ -130,8 +128,8 @@ async fn refresh_access_token(app: &AppHandle) -> Result<String, String> {
         .form(&[
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh_token.as_str()),
-            ("client_id", client_id.as_str()),
-            ("client_secret", client_secret.as_str()),
+            ("client_id", oauth::GOOGLE_CLIENT_ID),
+            ("client_secret", oauth::GOOGLE_CLIENT_SECRET),
         ])
         .send()
         .await

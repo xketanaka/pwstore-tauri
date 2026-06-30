@@ -7,10 +7,8 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::commands;
 
-const CONFIG_FILE: &str = "config.json";
-
-const GOOGLE_CLIENT_ID: &str = env!("GOOGLE_CLIENT_ID");
-const GOOGLE_CLIENT_SECRET: &str = env!("GOOGLE_CLIENT_SECRET");
+pub const GOOGLE_CLIENT_ID: &str = env!("GOOGLE_CLIENT_ID");
+pub const GOOGLE_CLIENT_SECRET: &str = env!("GOOGLE_CLIENT_SECRET");
 
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
@@ -38,40 +36,11 @@ fn code_challenge(verifier: &str) -> String {
     URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
 }
 
-// ---- 設定ファイル（非シークレット値） ----
-
-fn config_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
-    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.join(CONFIG_FILE))
-}
-
-fn read_config(app: &tauri::AppHandle) -> serde_json::Value {
-    config_path(app)
-        .ok()
-        .and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_else(|| serde_json::json!({}))
-}
-
-fn write_config(app: &tauri::AppHandle, config: &serde_json::Value) -> Result<(), String> {
-    let path = config_path(app)?;
-    let json = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
-    std::fs::write(path, json).map_err(|e| e.to_string())
-}
-
 // ---- リフレッシュトークン ----
 
 pub fn get_refresh_token(app: &tauri::AppHandle) -> Result<String, String> {
     commands::load_secret(app, "refresh_token")
         .map_err(|_| "リフレッシュトークンが見つかりません。再認証してください。".to_string())
-}
-
-/// OAuth が完走したことを config.json に記録する
-fn set_oauth_completed(app: &tauri::AppHandle) -> Result<(), String> {
-    let mut config = read_config(app);
-    config["oauth_completed"] = serde_json::Value::Bool(true);
-    write_config(app, &config)
 }
 
 /// デスクトップ: ループバックHTTPサーバーでOAuthコールバックを受け取る
@@ -156,8 +125,7 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
 
             commands::save_secret(&app, "refresh_token", refresh_token)?;
             let app_state = app.state::<commands::AppState>();
-            commands::do_unlock(&app, &app_state)?;
-            set_oauth_completed(&app)
+            commands::do_unlock(&app, &app_state)
         }
         .await;
 
@@ -260,7 +228,6 @@ pub async fn handle_oauth_callback(
     commands::save_secret(&app, "refresh_token", refresh_token)?;
     let app_state = app.state::<commands::AppState>();
     commands::do_unlock(&app, &app_state)?;
-    set_oauth_completed(&app)?;
 
     app.emit("oauth-complete", ()).ok();
     Ok(())
