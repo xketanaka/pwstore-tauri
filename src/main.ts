@@ -5,6 +5,7 @@ import { showScreen } from "./router.ts";
 import { initInitScreen } from "./screens/init.ts";
 import { initSearchScreen } from "./screens/search.ts";
 import { initAdminScreen } from "./screens/admin.ts";
+import { showConflictDialog } from "./conflict.ts";
 
 async function resizeTo(w: number, h: number): Promise<void> {
   try { await getCurrentWindow().setSize(new LogicalSize(w, h)); } catch {}
@@ -27,12 +28,18 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     await api.unlock();
-    api.driveSync().catch((e) => {
-      const el = document.querySelector<HTMLElement>("#search-status");
-      if (el) {
-        el.textContent = `Drive同期エラー: ${e}`;
-        el.className = "search-status search-status-error";
-        el.hidden = false;
+    api.driveDownload().catch(async (e) => {
+      if (String(e).includes("競合")) {
+        const choice = await showConflictDialog();
+        if (choice === "local") await api.driveForceUpload().catch(console.error);
+        else if (choice === "drive") await api.driveDownload().catch(console.error);
+      } else {
+        const el = document.querySelector<HTMLElement>("#search-status");
+        if (el) {
+          el.textContent = `Drive同期エラー: ${e}`;
+          el.className = "search-status search-status-error";
+          el.hidden = false;
+        }
       }
     });
     showScreen("search");

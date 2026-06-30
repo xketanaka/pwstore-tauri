@@ -66,4 +66,5 @@ export const api = {
   // Google Drive 同期
   driveDownload:        ()                                     => invoke<void>("drive_download"),
   driveSync:            ()                                     => invoke<void>("drive_sync"),
+  driveForceUpload:     ()                                     => invoke<void>("drive_force_upload"),
 };

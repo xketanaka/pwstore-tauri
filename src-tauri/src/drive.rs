@@ -268,6 +268,23 @@ async fn upload_to_drive(
 
 // ---- Tauriコマンド ----
 
+/// 競合を無視してローカルデータを Drive に強制アップロード（競合解消用）
+#[tauri::command]
+pub async fn drive_force_upload(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let access_token = refresh_access_token(&app).await?;
+    let local_hash = {
+        let guard = state.store.lock().unwrap();
+        let store = guard.as_ref().ok_or("ストアがロックされています")?;
+        entries_hash(&store.entries)
+    };
+    let folder_id = find_or_create_folder(&access_token).await?;
+    let file_id = find_file_id(&access_token, &folder_id).await?;
+    let data = std::fs::read(commands::data_file_path(&app)?).map_err(|e| e.to_string())?;
+    upload_to_drive(&access_token, data, file_id.as_deref(), &folder_id).await?;
+    commands::save_secret(&app, "sync_hash", &local_hash)?;
+    Ok(())
+}
+
 /// 起動時ダウンロード: Drive のデータでローカルを上書きし sync_hash を記録
 #[tauri::command]
 pub async fn drive_download(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {

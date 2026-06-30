@@ -2,6 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { api, Entry, ExtraField } from "../api.ts";
 import { showScreen } from "../router.ts";
+import { showConflictDialog } from "../conflict.ts";
 
 const ADMIN_W = 960;
 const ADMIN_H = 975;
@@ -42,14 +43,14 @@ async function resizeForAdmin(): Promise<void> {
 export async function showAdminScreen(): Promise<void> {
   await resizeForAdmin();
   showScreen("admin");
-  api.driveSync().catch((err) => showAdminStatusError(`同期エラー: ${err}`));
+  api.driveDownload().catch((err) => showAdminStatusError(`ダウンロードエラー: ${err}`));
   await refresh();
 }
 
 export async function showAdminScreenWithEntry(entry: Entry): Promise<void> {
   await resizeForAdmin();
   showScreen("admin");
-  api.driveSync().catch((err) => showAdminStatusError(`同期エラー: ${err}`));
+  api.driveDownload().catch((err) => showAdminStatusError(`ダウンロードエラー: ${err}`));
   await refresh();
   selectedEntryId = entry.id;
   // カテゴリペインも選択状態に合わせる
@@ -411,6 +412,26 @@ function collectExtraFields(form: HTMLFormElement): ExtraField[] {
 
 // ---- Drive Sync ----
 
+async function resolveConflict(): Promise<void> {
+  const choice = await showConflictDialog();
+  if (choice === "local") {
+    try {
+      await api.driveForceUpload();
+      showAdminStatus("ローカルデータをDriveに反映しました");
+    } catch (err) {
+      showAdminStatusError(`アップロードエラー: ${err}`);
+    }
+  } else if (choice === "drive") {
+    try {
+      await api.driveDownload();
+      await refresh();
+      showAdminStatus("Driveのデータを取り込みました");
+    } catch (err) {
+      showAdminStatusError(`ダウンロードエラー: ${err}`);
+    }
+  }
+}
+
 async function doSync(): Promise<void> {
   showAdminStatus("Driveと同期中...");
   await api.driveSync();
@@ -429,7 +450,11 @@ async function handleSync(): Promise<void> {
   try {
     await doSync();
   } catch (err) {
-    showAdminStatusError(`同期エラー: ${err}`);
+    if (String(err).includes("競合")) {
+      await resolveConflict();
+    } else {
+      showAdminStatusError(`同期エラー: ${err}`);
+    }
   } finally {
     btn.disabled = false;
   }
@@ -439,7 +464,11 @@ async function autoSync(): Promise<void> {
   try {
     await doSync();
   } catch (err) {
-    showAdminStatusError(`同期エラー: ${err}`);
+    if (String(err).includes("競合")) {
+      await resolveConflict();
+    } else {
+      showAdminStatusError(`同期エラー: ${err}`);
+    }
   }
 }
 

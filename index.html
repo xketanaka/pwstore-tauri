@@ -135,5 +135,19 @@
       <span class="loading-spinner"></span>
     </div>
 
+    <!-- 競合解消ダイアログ -->
+    <div id="conflict-dialog" class="conflict-overlay" hidden>
+      <div class="conflict-card">
+        <p class="conflict-icon">⚠</p>
+        <h2 class="conflict-title">データの競合</h2>
+        <p class="conflict-desc">ローカルとDriveの両方で変更が行われています。<br>どちらのデータを使用しますか？</p>
+        <div class="conflict-actions">
+          <button id="conflict-use-local" class="btn-primary">ローカルを使用<span class="conflict-sub">Driveを上書き</span></button>
+          <button id="conflict-use-drive" class="btn-primary">Driveを使用<span class="conflict-sub">ローカルを上書き</span></button>
+          <button id="conflict-cancel" class="btn-conflict-cancel">何もしない<span class="conflict-sub">自分で解消する</span></button>
+        </div>
+      </div>
+    </div>
+
   </body>
 </html>

@@ -619,3 +619,82 @@ textarea:focus { border-color: var(--accent); }
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- 競合解消ダイアログ ---- */
+.conflict-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.conflict-overlay[hidden] { display: none !important; }
+
+.conflict-card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+  padding: 32px 28px;
+  width: 320px;
+  text-align: center;
+}
+
+.conflict-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.conflict-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.conflict-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.conflict-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conflict-actions .btn-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 0;
+  padding: 10px;
+}
+
+.conflict-sub {
+  font-size: 11px;
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.btn-conflict-cancel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px;
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-conflict-cancel:hover { background: var(--surface-hover); }
