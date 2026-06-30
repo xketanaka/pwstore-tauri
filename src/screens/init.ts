@@ -6,37 +6,21 @@ export function initInitScreen(): void {
   setupStep1();
 }
 
-// ---- ステップ1: クライアントID・パスフレーズ入力 ----
+// ---- ステップ1: パスフレーズ入力 ----
 
 function setupStep1(): void {
-  const form           = document.querySelector<HTMLFormElement>("#init-form")!;
-  const clientIdEl     = document.querySelector<HTMLInputElement>("#init-client-id")!;
-  const clientSecretEl = document.querySelector<HTMLInputElement>("#init-client-secret")!;
-  const passEl         = document.querySelector<HTMLInputElement>("#init-passphrase")!;
-  const confirmEl      = document.querySelector<HTMLInputElement>("#init-passphrase-confirm")!;
-  const errorEl        = document.querySelector<HTMLElement>("#init-error")!;
-  const submitBtn      = document.querySelector<HTMLButtonElement>("#init-submit")!;
+  const form      = document.querySelector<HTMLFormElement>("#init-form")!;
+  const passEl    = document.querySelector<HTMLInputElement>("#init-passphrase")!;
+  const confirmEl = document.querySelector<HTMLInputElement>("#init-passphrase-confirm")!;
+  const errorEl   = document.querySelector<HTMLElement>("#init-error")!;
+  const submitBtn = document.querySelector<HTMLButtonElement>("#init-submit")!;
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     hideError(errorEl);
 
-    const clientId     = clientIdEl.value.trim();
-    const clientSecret = clientSecretEl.value.trim();
-    const passphrase   = passEl.value;
-    const confirm      = confirmEl.value;
-
-    if (!clientId) {
-      showError(errorEl, "クライアントIDを入力してください");
-      clientIdEl.focus();
-      return;
-    }
-
-    if (!clientSecret) {
-      showError(errorEl, "クライアントシークレットを入力してください");
-      clientSecretEl.focus();
-      return;
-    }
+    const passphrase = passEl.value;
+    const confirm    = confirmEl.value;
 
     if (passphrase.length < 8) {
       showError(errorEl, "パスフレーズは8文字以上にしてください");
@@ -54,8 +38,6 @@ function setupStep1(): void {
     submitBtn.textContent = "保存中...";
 
     try {
-      await api.saveClientId(clientId);
-      await api.saveClientSecret(clientSecret);
       await api.saveCredentials(passphrase);
       showStep2();
     } catch (err) {

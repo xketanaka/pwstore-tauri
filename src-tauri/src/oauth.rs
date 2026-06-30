@@ -9,6 +9,9 @@ use crate::commands;
 
 const CONFIG_FILE: &str = "config.json";
 
+const GOOGLE_CLIENT_ID: &str = env!("GOOGLE_CLIENT_ID");
+const GOOGLE_CLIENT_SECRET: &str = env!("GOOGLE_CLIENT_SECRET");
+
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const SCOPES: &str = "https://www.googleapis.com/auth/drive.file";
@@ -71,42 +74,6 @@ fn set_oauth_completed(app: &tauri::AppHandle) -> Result<(), String> {
     write_config(app, &config)
 }
 
-// ---- Tauriコマンド ----
-
-#[tauri::command]
-pub fn save_client_id(app: tauri::AppHandle, client_id: String) -> Result<(), String> {
-    let mut config = read_config(&app);
-    config["google_client_id"] = serde_json::Value::String(client_id);
-    write_config(&app, &config)
-}
-
-#[tauri::command]
-pub fn get_client_id(app: tauri::AppHandle) -> Result<String, String> {
-    let config = read_config(&app);
-    config["google_client_id"]
-        .as_str()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "クライアントIDが設定されていません".to_string())
-}
-
-#[tauri::command]
-pub fn save_client_secret(app: tauri::AppHandle, client_secret: String) -> Result<(), String> {
-    let mut config = read_config(&app);
-    config["google_client_secret"] = serde_json::Value::String(client_secret);
-    write_config(&app, &config)
-}
-
-#[tauri::command]
-pub fn get_client_secret(app: tauri::AppHandle) -> Result<String, String> {
-    let config = read_config(&app);
-    config["google_client_secret"]
-        .as_str()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "クライアントシークレットが設定されていません".to_string())
-}
-
 /// デスクトップ: ループバックHTTPサーバーでOAuthコールバックを受け取る
 #[cfg(desktop)]
 #[tauri::command]
@@ -114,8 +81,6 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
     use tokio::io::AsyncReadExt;
     use tokio::net::TcpListener;
 
-    let client_id = get_client_id(app.clone())?;
-    let client_secret = get_client_secret(app.clone())?;
     let verifier = generate_code_verifier();
     let challenge = code_challenge(&verifier);
 
@@ -131,7 +96,7 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
          &scope={scope}&code_challenge={challenge}&code_challenge_method=S256\
          &access_type=offline&prompt=consent",
         url = GOOGLE_AUTH_URL,
-        client_id = urlencoding(client_id.clone()),
+        client_id = urlencoding(GOOGLE_CLIENT_ID.to_string()),
         redirect = urlencoding(redirect_uri.clone()),
         scope = urlencoding(SCOPES.to_string()),
         challenge = challenge,
@@ -169,8 +134,8 @@ pub async fn start_oauth(app: tauri::AppHandle) -> Result<(), String> {
                 .post(GOOGLE_TOKEN_URL)
                 .form(&[
                     ("code", code.as_str()),
-                    ("client_id", client_id.as_str()),
-                    ("client_secret", client_secret.as_str()),
+                    ("client_id", GOOGLE_CLIENT_ID),
+                    ("client_secret", GOOGLE_CLIENT_SECRET),
                     ("redirect_uri", redirect_uri.as_str()),
                     ("code_verifier", verifier.as_str()),
                     ("grant_type", "authorization_code"),
@@ -214,7 +179,6 @@ pub fn start_oauth(
 ) -> Result<(), String> {
     const MOBILE_REDIRECT_URI: &str = "pwstore://oauth/callback";
 
-    let client_id = get_client_id(app.clone())?;
     let verifier = generate_code_verifier();
     let challenge = code_challenge(&verifier);
 
@@ -225,7 +189,7 @@ pub fn start_oauth(
          &scope={scope}&code_challenge={challenge}&code_challenge_method=S256\
          &access_type=offline&prompt=consent",
         url = GOOGLE_AUTH_URL,
-        client_id = urlencoding(client_id),
+        client_id = urlencoding(GOOGLE_CLIENT_ID.to_string()),
         redirect = urlencoding(MOBILE_REDIRECT_URI.to_string()),
         scope = urlencoding(SCOPES.to_string()),
         challenge = challenge,
@@ -266,16 +230,13 @@ pub async fn handle_oauth_callback(
         .take()
         .ok_or("OAuthセッションが見つかりません。もう一度試してください。")?;
 
-    let client_id = get_client_id(app.clone())?;
-    let client_secret = get_client_secret(app.clone())?;
-
     let client = reqwest::Client::new();
     let res = client
         .post(GOOGLE_TOKEN_URL)
         .form(&[
             ("code", code.as_str()),
-            ("client_id", &client_id),
-            ("client_secret", &client_secret),
+            ("client_id", GOOGLE_CLIENT_ID),
+            ("client_secret", GOOGLE_CLIENT_SECRET),
             ("redirect_uri", MOBILE_REDIRECT_URI),
             ("code_verifier", &verifier),
             ("grant_type", "authorization_code"),

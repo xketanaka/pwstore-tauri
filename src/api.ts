@@ -54,10 +54,6 @@ export const api = {
   // OTP
   generateOtp:          (otpUri: string)                      => invoke<[string, number]>("generate_otp", { otpUri }),
   // Google OAuth
-  saveClientId:         (clientId: string)                    => invoke<void>("save_client_id", { clientId }),
-  getClientId:          ()                                     => invoke<string>("get_client_id"),
-  saveClientSecret:     (clientSecret: string)                => invoke<void>("save_client_secret", { clientSecret }),
-  getClientSecret:      ()                                     => invoke<string>("get_client_secret"),
   startOauth:           ()                                     => invoke<void>("start_oauth"),
   handleOauthCallback:  (url: string)                         => invoke<void>("handle_oauth_callback", { url }),
   // カテゴリ
