@@ -27,7 +27,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     await api.unlock();
-    api.driveDownload().catch((e) => console.warn("起動時ダウンロード失敗（ローカルデータを使用）:", e));
+    api.driveDownload().catch((e) => {
+      const el = document.querySelector<HTMLElement>("#search-status");
+      if (el) {
+        el.textContent = `Drive同期エラー: ${e}`;
+        el.className = "search-status search-status-error";
+        el.hidden = false;
+      }
+    });
     showScreen("search");
   } catch (err) {
     console.error("起動エラー:", err);
