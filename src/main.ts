@@ -27,7 +27,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     await api.unlock();
-    api.driveDownload().catch((e) => {
+    api.driveSync().catch((e) => {
       const el = document.querySelector<HTMLElement>("#search-status");
       if (el) {
         el.textContent = `Drive同期エラー: ${e}`;
