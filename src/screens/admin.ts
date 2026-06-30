@@ -49,7 +49,7 @@ export async function showAdminScreen(): Promise<void> {
 export async function showAdminScreenWithEntry(entry: Entry): Promise<void> {
   await resizeForAdmin();
   showScreen("admin");
-  try { await api.driveDownload(); } catch {};
+  try { await api.driveDownload(); } catch {}
   await refresh();
   selectedEntryId = entry.id;
   // カテゴリペインも選択状態に合わせる
@@ -79,7 +79,7 @@ function renderCategories(): void {
   const list = document.querySelector<HTMLUListElement>("#category-list")!;
 
   if (categoryEditMode) {
-    header.innerHTML = `<span>カテゴリ編集</span><button class="btn-icon pane-header-btn" id="category-done-btn">完了</button>`;
+    header.innerHTML = `<span>カテゴリ編集</span><button class="btn-icon pane-header-btn" id="category-done-btn">閉じる</button>`;
     document.querySelector<HTMLButtonElement>("#category-done-btn")!.addEventListener("click", () => {
       categoryEditMode = false;
       renderCategories();
@@ -97,9 +97,13 @@ function renderCategories(): void {
 
 function renderCategoryList(list: HTMLUListElement): void {
   list.innerHTML = "";
-  const cats = [...new Set(allEntries.map((e) => e.category || "(なし)"))].sort();
 
-  for (const cat of ["(すべて)", ...cats]) {
+  // allCategories を基本に、エントリで使われているがリストにないカテゴリも合わせて表示
+  const entryCats = allEntries.map((e) => e.category).filter(Boolean) as string[];
+  const merged = [...new Set([...allCategories, ...entryCats])].sort();
+  const hasUncategorized = allEntries.some((e) => !e.category);
+
+  for (const cat of ["(すべて)", ...merged, ...(hasUncategorized ? ["(なし)"] : [])]) {
     const li = document.createElement("li");
     li.textContent = cat;
     const isAll = cat === "(すべて)";
@@ -131,6 +135,7 @@ function renderCategoryEdit(list: HTMLUListElement): void {
       allCategories = allCategories.filter((c) => c !== cat);
       await api.setCategories(allCategories);
       renderCategoryEdit(list);
+      autoSync();
     });
     list.appendChild(li);
   }
@@ -152,6 +157,7 @@ function renderCategoryEdit(list: HTMLUListElement): void {
     allCategories = [...allCategories, name];
     await api.setCategories(allCategories);
     renderCategoryEdit(list);
+    autoSync();
   };
   addBtn.addEventListener("click", addCategory);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addCategory(); } });
