@@ -12,7 +12,7 @@ pub const GOOGLE_CLIENT_SECRET: &str = env!("GOOGLE_CLIENT_SECRET");
 
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
-const SCOPES: &str = "https://www.googleapis.com/auth/drive.file";
+const SCOPES: &str = "https://www.googleapis.com/auth/drive";
 
 pub struct OAuthState {
     pub code_verifier: Mutex<Option<String>>,

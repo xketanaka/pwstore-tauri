@@ -13,7 +13,7 @@ Tauri v2 製のパーソナルパスワードマネージャ。Google Drive で�
 ### 1. OAuth 認証情報の準備
 
 Google Cloud Console でプロジェクトを作成し、OAuth 2.0 クライアント ID（デスクトップアプリ用）を発行する。
-スコープは `https://www.googleapis.com/auth/drive.file` のみ。
+スコープは `https://www.googleapis.com/auth/drive`。
 
 `src-tauri/.env.example` を `src-tauri/.env` にコピーして値を記入する：
 
@@ -73,7 +73,7 @@ npm run tauri build # リリースビルド
 ## Google Drive 同期
 
 Drive の `My Drive/pwstore/` フォルダ内の `data.enc` と同期する。
-スコープは `drive.file`（このアプリが作成したファイルのみアクセス可能）。
+スコープは `drive`（Drive 全体の読み書き）。
 
 ### 競合検出ロジック
 
