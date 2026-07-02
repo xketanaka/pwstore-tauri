@@ -2,7 +2,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 
 use crate::crypto;
-use crate::models::{DataStore, Entry, FlatEntry};
+use crate::models::{DataStore, Entry};
 
 pub struct AppState {
     pub store: Mutex<Option<DataStore>>,
@@ -44,18 +44,6 @@ pub fn apply_upsert(entries: &mut Vec<Entry>, mut entry: Entry) -> Entry {
     entry.id = entries.iter().map(|e| e.id).max().unwrap_or(0) + 1;
     entries.push(entry.clone());
     entry
-}
-
-pub fn apply_import(entries: &mut Vec<Entry>, flat_entries: Vec<FlatEntry>) -> usize {
-    let count = flat_entries.len();
-    for flat in flat_entries {
-        let entry: Entry = flat.into();
-        match entries.iter_mut().find(|e| e.id == entry.id) {
-            Some(existing) => *existing = entry,
-            None => entries.push(entry),
-        }
-    }
-    count
 }
 
 // ---- Tauri依存ヘルパー ----
@@ -184,26 +172,6 @@ pub fn delete_entry(app: AppHandle, id: u32, state: State<'_, AppState>) -> Resu
 }
 
 #[tauri::command]
-pub fn import_flat(
-    app: AppHandle,
-    entries: Vec<FlatEntry>,
-    state: State<'_, AppState>,
-) -> Result<usize, String> {
-    let mut guard = state.store.lock().unwrap();
-    let store = guard.as_mut().ok_or("ストアがロックされています")?;
-    let count = apply_import(&mut store.entries, entries);
-    persist(&app, store, &state)?;
-    Ok(count)
-}
-
-#[tauri::command]
-pub fn export_flat(state: State<'_, AppState>) -> Result<Vec<FlatEntry>, String> {
-    let guard = state.store.lock().unwrap();
-    let store = guard.as_ref().ok_or("ストアがロックされています")?;
-    Ok(store.entries.iter().cloned().map(FlatEntry::from).collect())
-}
-
-#[tauri::command]
 pub fn get_categories(state: State<'_, AppState>) -> Result<Vec<String>, String> {
     let guard = state.store.lock().unwrap();
     let store = guard.as_ref().ok_or("ストアがロックされています")?;
@@ -239,7 +207,7 @@ pub fn generate_otp(otp_uri: String) -> Result<(String, u64), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Entry, FlatEntry};
+    use crate::models::Entry;
 
     fn make_entry(id: u32, service: &str, account: &str, keyword: &str) -> Entry {
         Entry {
@@ -350,49 +318,6 @@ mod tests {
         let saved = apply_upsert(&mut entries, new);
         assert_eq!(saved.id, 2); // 99 は存在しないので新規扱い→ max+1
         assert_eq!(entries.len(), 2);
-    }
-
-    // --- apply_import ---
-
-    #[test]
-    fn import_adds_new_entries() {
-        let mut entries = vec![];
-        let flat = FlatEntry {
-            id: 10,
-            service_name: "AWS".to_string(),
-            account: "alice".to_string(),
-            password: "pass".to_string(),
-            status: 1,
-            keyword: "cloud".to_string(),
-            category: "biz".to_string(),
-            extra1_key_name: None, extra1_value: None, extra1_encrypted: None,
-            extra2_key_name: None, extra2_value: None, extra2_encrypted: None,
-            extra3_key_name: None, extra3_value: None, extra3_encrypted: None,
-        };
-        let count = apply_import(&mut entries, vec![flat]);
-        assert_eq!(count, 1);
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].id, 10);
-    }
-
-    #[test]
-    fn import_overwrites_existing_id() {
-        let mut entries = vec![make_entry(10, "AWS", "alice", "")];
-        let flat = FlatEntry {
-            id: 10,
-            service_name: "AWS".to_string(),
-            account: "alice-new".to_string(),
-            password: "pass".to_string(),
-            status: 1,
-            keyword: "".to_string(),
-            category: "".to_string(),
-            extra1_key_name: None, extra1_value: None, extra1_encrypted: None,
-            extra2_key_name: None, extra2_value: None, extra2_encrypted: None,
-            extra3_key_name: None, extra3_value: None, extra3_encrypted: None,
-        };
-        apply_import(&mut entries, vec![flat]);
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].account, "alice-new");
     }
 
     // --- generate_otp ---

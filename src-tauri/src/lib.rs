@@ -26,9 +26,6 @@ pub fn run() {
             // カテゴリ
             commands::get_categories,
             commands::set_categories,
-            // インポート／エクスポート
-            commands::import_flat,
-            commands::export_flat,
             // OTP
             commands::generate_otp,
             // Google OAuth
