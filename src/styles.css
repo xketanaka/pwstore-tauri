@@ -245,6 +245,7 @@ input:focus {
 }
 
 .btn-small:hover { border-color: var(--accent); color: var(--accent); }
+.btn-small:disabled:hover { border-color: var(--border); color: inherit; cursor: default; }
 
 .search-status {
   position: absolute;
@@ -269,6 +270,7 @@ input:focus {
   display: flex;
   align-items: center;
   gap: 2px;
+  margin-left: auto;
 }
 
 .admin-status {
@@ -296,8 +298,8 @@ input:focus {
 .admin-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 10px 16px;
+  gap: 8px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -305,7 +307,22 @@ input:focus {
 .admin-title {
   font-weight: 600;
   font-size: 14px;
+  white-space: nowrap;
+  width: 144px;
+  flex-shrink: 0;
 }
+
+.admin-toolbar .admin-search {
+  width: 400px;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+.admin-toolbar .admin-search:focus { border-color: var(--accent); }
 
 .admin-panes {
   display: flex;
@@ -321,9 +338,10 @@ input:focus {
 }
 
 .pane-category { width: 160px; min-width: 160px; }
-.pane-service  { width: 220px; min-width: 220px; }
+.pane-service  { width: 430px; min-width: 430px; }
 .pane-detail   { flex: 1; }
 .pane:last-child { border-right: none; }
+
 
 .pane-header {
   padding: 8px 12px;
@@ -350,6 +368,25 @@ input:focus {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+}
+.service-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+.service-item-account {
+  color: var(--text-muted, #888);
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pane-list li:hover { background: var(--surface-hover); }

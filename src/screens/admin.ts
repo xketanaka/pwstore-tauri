@@ -3,8 +3,9 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 import { api, Entry, ExtraField } from "../api.ts";
 import { showScreen } from "../router.ts";
 import { showConflictDialog } from "../conflict.ts";
+import { filterAndRankEntries } from "../entryFilter.ts";
 
-const ADMIN_W = 960;
+const ADMIN_W = 1010;
 const ADMIN_H = 975;
 
 // ---- State ----
@@ -14,12 +15,16 @@ let allCategories: string[] = [];
 let selectedCategory: string | null = null;  // null = すべて
 let selectedEntryId: number | null = null;
 let categoryEditMode = false;
+let serviceKeyword = "";
 
 // ---- Public API ----
 
 export function initAdminScreen(): void {
   document.querySelector<HTMLButtonElement>("#admin-back-btn")
-    ?.addEventListener("click", () => showScreen("search"));
+    ?.addEventListener("click", () => {
+      getCurrentWindow().setSize(new LogicalSize(480, 56)).catch(() => {});
+      showScreen("search");
+    });
 
   document.querySelector<HTMLButtonElement>("#admin-new-btn")
     ?.addEventListener("click", () => {
@@ -30,6 +35,12 @@ export function initAdminScreen(): void {
 
   document.querySelector<HTMLButtonElement>("#admin-drive-sync-btn")
     ?.addEventListener("click", () => handleSync());
+
+  document.querySelector<HTMLInputElement>("#service-search")
+    ?.addEventListener("input", (e) => {
+      serviceKeyword = (e.target as HTMLInputElement).value.trim().toLowerCase();
+      renderServices();
+    });
 }
 
 async function resizeForAdmin(): Promise<void> {
@@ -167,10 +178,11 @@ function renderCategoryEdit(list: HTMLUListElement): void {
 // ---- Service Pane ----
 
 function filteredEntries(): Entry[] {
-  if (selectedCategory === null) return allEntries;
-  return allEntries.filter(
-    (e) => (e.category || "(なし)") === selectedCategory
-  );
+  let entries = selectedCategory === null
+    ? allEntries
+    : allEntries.filter((e) => (e.category || "(なし)") === selectedCategory);
+  if (!serviceKeyword) return entries;
+  return filterAndRankEntries(entries, serviceKeyword);
 }
 
 function renderServices(): void {
@@ -179,9 +191,10 @@ function renderServices(): void {
 
   for (const entry of filteredEntries()) {
     const li = document.createElement("li");
-    li.textContent = entry.account
-      ? `${entry.service_name} (${entry.account})`
-      : entry.service_name;
+    li.innerHTML = `<span class="service-item">
+      <span class="service-item-name">${esc(entry.service_name)}</span>
+      ${entry.account ? `<span class="service-item-account">${esc(entry.account)}</span>` : ""}
+    </span>`;
     li.title = entry.account;
     if (entry.id === selectedEntryId) li.classList.add("active");
     li.addEventListener("click", () => {

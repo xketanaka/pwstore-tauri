@@ -2,6 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { api, Entry } from "../api.ts";
 import { onScreenShow } from "../router.ts";
+import { filterAndRankEntries } from "../entryFilter.ts";
 import { showAdminScreen, showAdminScreenWithEntry } from "./admin.ts";
 
 const SEARCH_W = 480;
@@ -54,7 +55,9 @@ async function handleInput(keyword: string): Promise<void> {
     setResultsVisible(false);
     return;
   }
-  results = await api.searchEntries(keyword);
+  const firstKeyword = keyword.trim().split(/\s+/)[0];
+  const raw = await api.searchEntries(firstKeyword);
+  results = filterAndRankEntries(raw, keyword);
   renderResults();
 }
 
