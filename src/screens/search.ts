@@ -57,7 +57,7 @@ async function handleInput(keyword: string): Promise<void> {
   }
   const firstKeyword = keyword.trim().split(/\s+/)[0];
   const raw = await api.searchEntries(firstKeyword);
-  results = filterAndRankEntries(raw, keyword);
+  results = filterAndRankEntries(raw.filter(e => e.status !== 0), keyword);
   renderResults();
 }
 

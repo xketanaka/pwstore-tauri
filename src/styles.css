@@ -338,7 +338,7 @@ input:focus {
 }
 
 .pane-category { width: 160px; min-width: 160px; }
-.pane-service  { width: 430px; min-width: 430px; }
+.pane-service  { width: 410px; min-width: 410px; }
 .pane-detail   { flex: 1; }
 .pane:last-child { border-right: none; }
 
@@ -390,6 +390,7 @@ input:focus {
 }
 
 .pane-list li:hover { background: var(--surface-hover); }
+.pane-list li.inactive:not(.active) { opacity: 0.4; }
 .pane-list li.active {
   background: var(--accent);
   color: #fff;
@@ -735,3 +736,10 @@ textarea:focus { border-color: var(--accent); }
 }
 
 .btn-conflict-cancel:hover { background: var(--surface-hover); }
+
+/* ---- モバイル（管理画面: 右ペインのみ表示） ---- */
+@media (max-width: 500px) {
+  .pane-category,
+  .pane-service { display: none; }
+  .admin-toolbar .admin-search { display: none; }
+}

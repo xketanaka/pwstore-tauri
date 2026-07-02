@@ -22,7 +22,7 @@ let serviceKeyword = "";
 export function initAdminScreen(): void {
   document.querySelector<HTMLButtonElement>("#admin-back-btn")
     ?.addEventListener("click", () => {
-      getCurrentWindow().setSize(new LogicalSize(480, 56)).catch(() => {});
+      if (!isMobile()) getCurrentWindow().setSize(new LogicalSize(480, 56)).catch(() => {});
       showScreen("search");
     });
 
@@ -43,7 +43,12 @@ export function initAdminScreen(): void {
     });
 }
 
+function isMobile(): boolean {
+  return /android/i.test(navigator.userAgent);
+}
+
 async function resizeForAdmin(): Promise<void> {
+  if (isMobile()) return;
   try {
     await getCurrentWindow().setSize(new LogicalSize(ADMIN_W, ADMIN_H));
   } catch (e) {
@@ -56,6 +61,7 @@ export async function showAdminScreen(): Promise<void> {
   showScreen("admin");
   api.driveDownload().catch((err) => showAdminStatusError(`ダウンロードエラー: ${err}`));
   await refresh();
+  if (isMobile()) showEntryForm(null);
 }
 
 export async function showAdminScreenWithEntry(entry: Entry): Promise<void> {
@@ -197,6 +203,7 @@ function renderServices(): void {
     </span>`;
     li.title = entry.account;
     if (entry.id === selectedEntryId) li.classList.add("active");
+    if (entry.status === 0) li.classList.add("inactive");
     li.addEventListener("click", () => {
       selectedEntryId = entry.id;
       renderServices();
@@ -263,6 +270,13 @@ function buildFormHTML(entry: Entry | null): string {
       <div class="form-row">
         <label>メモ</label>
         <textarea name="notes" rows="3">${esc(e.notes ?? "")}</textarea>
+      </div>
+      <div class="form-row">
+        <label>ステータス</label>
+        <select name="status">
+          <option value="1"${e.status !== 0 ? " selected" : ""}>有効</option>
+          <option value="0"${e.status === 0 ? " selected" : ""}>無効</option>
+        </select>
       </div>
 
       <div class="form-section-title">拡張フィールド</div>
@@ -380,7 +394,7 @@ function setupFormHandlers(entry: Entry | null): void {
       keyword: (data.get("keyword") as string).trim(),
       otp_uri: (data.get("otp_uri") as string).trim() || undefined,
       notes: (data.get("notes") as string).trim() || undefined,
-      status: entry?.status ?? 1,
+      status: parseInt(data.get("status") as string, 10),
       extra_fields: collectExtraFields(form),
     };
 
