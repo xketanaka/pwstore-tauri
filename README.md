@@ -112,6 +112,75 @@ node tools/encrypt.js path/to/entries.json "マスターパスフレーズ"
 
 JSON 形式のエントリデータを `data.enc` に暗号化する。他のパスワードマネージャからの移行に使用する。
 
+### `tools/decrypt.js` — `passphrase` ファイルの確認
+
+```bash
+node tools/decrypt.js \
+  ~/Library/Application\ Support/com.ketanaka.pwstore-tauri/passphrase \
+  "SECRET_FILE_KEYの値"
+```
+
+`SECRET_FILE_KEY` は `src-tauri/.env` に記載の値を使用する。
+
+## Mac 向け Production ビルド（個人利用・署名なし）
+
+Mac 上で以下の手順を実行する。
+
+### 1. 前提ツールのインストール
+
+```bash
+# Xcode Command Line Tools
+xcode-select --install
+
+# Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+```
+
+Node.js 18 以上が必要。Node.js 22 で動作確認済み。
+
+### 2. リポジトリのセットアップ
+
+```bash
+git clone <リポジトリURL>
+cd pwstore-tauri
+npm install
+```
+
+### 3. `.env` を配置
+
+```bash
+cp src-tauri/.env.example src-tauri/.env
+# エディタで GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / SECRET_FILE_KEY を記入
+```
+
+### 4. ビルド
+
+```bash
+npm run tauri build
+```
+
+### 5. 成果物
+
+```
+src-tauri/target/release/bundle/macos/pwstore-tauri.app
+src-tauri/target/release/bundle/dmg/pwstore-tauri_0.1.0_aarch64.dmg  # Apple Silicon
+src-tauri/target/release/bundle/dmg/pwstore-tauri_0.1.0_x64.dmg      # Intel
+```
+
+`.app` を `/Applications` にコピーするか、DMG からインストールする。
+
+### 6. 初回起動時の Gatekeeper 回避
+
+署名なしのため「開発元を確認できません」と表示される。以下のいずれかで回避する：
+
+```bash
+# quarantine 属性を外す
+xattr -d com.apple.quarantine /Applications/pwstore-tauri.app
+```
+
+または Finder で右クリック →「開く」を選択。
+
 ## 開発メモ
 
 ### Linux VM でのコンパイルエラー (SIGSEGV)
