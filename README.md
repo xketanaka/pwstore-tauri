@@ -79,6 +79,67 @@ Finder で右クリック →「開く」を選択するか、以下のコマン
 xattr -d com.apple.quarantine /Applications/pwstore-tauri.app
 ```
 
+## Android 向け Production ビルド
+
+Mac / Linux どちらでも実行できる。
+
+### ANDROID.1 前提ツールのインストール
+
+[Android Studio](https://developer.android.com/studio) をインストールし、SDK Manager で以下を確認する：
+
+- Android SDK（API 24 以上）
+- Android NDK
+- Android SDK Command-line Tools
+
+**環境変数を設定**（`~/.zshrc` や `~/.bashrc` に追記）：
+
+Mac:
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export NDK_HOME="$ANDROID_HOME/ndk/$(ls $ANDROID_HOME/ndk | tail -1)"
+```
+
+Linux:
+```bash
+export JAVA_HOME="$HOME/android-studio/jbr"
+export ANDROID_HOME="$HOME/Android/Sdk"
+export NDK_HOME="$ANDROID_HOME/ndk/$(ls $ANDROID_HOME/ndk | tail -1)"
+```
+
+### ANDROID.2 Rust の Android ターゲットを追加
+
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+```
+
+### ANDROID.3 Android プロジェクトの初期化（初回のみ）
+
+```bash
+npm run tauri android init
+```
+
+`src-tauri/gen/android/` が生成される。
+
+### ANDROID.4 ビルド
+
+```bash
+npm run tauri android build
+```
+
+成果物：
+```
+src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+```
+
+### ANDROID.5 端末へのインストール
+
+Android 端末の「開発者向けオプション」で USB デバッグを有効にして接続し：
+
+```bash
+adb install src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+```
+
 ## テスト
 
 ### TypeScript (vitest)
