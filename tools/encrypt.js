@@ -3,7 +3,7 @@
  * pwstore-tauri データ暗号化スクリプト
  *
  * 使い方:
- *   node encrypt.js <JSONファイル> <マスターパスフレーズ> [出力ファイル]
+ *   node encrypt.js <JSONファイル> <マスターパスフレーズ> [出力ファイル = data.enc]
  *
  *   出力ファイルを省略すると data.enc として保存します。
  *
