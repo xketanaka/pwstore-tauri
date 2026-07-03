@@ -78,3 +78,20 @@ Finder で右クリック →「開く」を選択するか、以下のコマン
 # quarantine 属性を外す
 xattr -d com.apple.quarantine /Applications/pwstore-tauri.app
 ```
+
+## テスト
+
+### TypeScript (vitest)
+
+```bash
+npm test           # 全テストを1回実行
+npm run test:watch # ファイル変更を監視して自動再実行
+```
+
+テストファイルは `src/**/*.test.ts` に配置する。
+
+### Rust (cargo test)
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml
+```
