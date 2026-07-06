@@ -93,10 +93,10 @@ async function handleKeydown(
     if (!entry) return;
     if (ev.shiftKey) {
       await copyToClipboard(entry.account);
-      showStatus("アカウントをコピーしました");
+      showStatus("アカウントをコピーしました", selectedIdx);
     } else {
       await copyToClipboard(entry.password);
-      showStatus("パスワードをコピーしました");
+      showStatus("パスワードをコピーしました", selectedIdx);
       setTimeout(() => getCurrentWindow().minimize(), 600);
     }
   } else if (ev.key === "Escape") {
@@ -187,10 +187,19 @@ async function copyToClipboard(text: string): Promise<void> {
   await navigator.clipboard.writeText(text);
 }
 
-function showStatus(msg: string): void {
+function showStatus(msg: string, idx: number): void {
+  let topPx: number;
+  if (idx === 0) {
+    topPx = SEARCH_BAR_H / 2;
+  } else {
+    const list = document.querySelector<HTMLElement>("#search-results")!;
+    const prev = document.querySelectorAll<HTMLElement>(".search-result-item")[idx - 1];
+    topPx = list.offsetTop + prev.offsetTop + prev.offsetHeight / 2;
+  }
   const el = document.querySelector<HTMLElement>("#search-status")!;
   el.textContent = msg;
   el.className = "search-status";
+  el.style.top = `${topPx}px`;
   el.hidden = false;
   setTimeout(() => { el.hidden = true; }, 1500);
 }

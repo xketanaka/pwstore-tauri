@@ -249,7 +249,6 @@ input:focus {
 
 .search-status {
   position: absolute;
-  top: 56px;
   left: 0;
   right: 0;
   padding: 4px 12px;
