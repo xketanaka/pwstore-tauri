@@ -1,4 +1,4 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, currentMonitor } from "@tauri-apps/api/window";
 import { LogicalSize, LogicalPosition } from "@tauri-apps/api/dpi";
 import { api, Entry, ExtraField } from "../api.ts";
 import { showScreen } from "../router.ts";
@@ -53,7 +53,7 @@ function isMobile(): boolean {
 async function centerWindow(w: number, h: number): Promise<void> {
   const win = getCurrentWindow();
   await win.setSize(new LogicalSize(w, h));
-  const monitor = await win.currentMonitor();
+  const monitor = await currentMonitor();
   if (monitor) {
     const sf = monitor.scaleFactor;
     const monX = monitor.position.x / sf;
