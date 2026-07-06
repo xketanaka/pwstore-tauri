@@ -16,7 +16,10 @@ function resizeToFit(resultCount: number): void {
   const height = TITLE_BAR_H + (resultCount > 0
     ? SEARCH_BAR_H + Math.min(resultCount * ITEM_H, MAX_RESULTS_H)
     : SEARCH_BAR_H);
-  getCurrentWindow().setSize(new LogicalSize(SEARCH_W, height)).catch(() => {});
+  const win = getCurrentWindow();
+  win.setSize(new LogicalSize(SEARCH_W, height))
+    .then(() => win.center())
+    .catch(() => {});
 }
 
 // ---- State ----

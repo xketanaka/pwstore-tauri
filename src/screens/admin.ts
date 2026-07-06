@@ -24,7 +24,10 @@ export function initAdminScreen(): void {
     ?.addEventListener("click", () => {
       if (!isMobile()) {
         const titleBarH = /macintosh|mac os x/i.test(navigator.userAgent) ? 28 : 0;
-        getCurrentWindow().setSize(new LogicalSize(480, 56 + titleBarH)).catch(() => {});
+        const win = getCurrentWindow();
+        win.setSize(new LogicalSize(480, 56 + titleBarH))
+          .then(() => win.center())
+          .catch(() => {});
       }
       showScreen("search");
     });
@@ -53,7 +56,9 @@ function isMobile(): boolean {
 async function resizeForAdmin(): Promise<void> {
   if (isMobile()) return;
   try {
-    await getCurrentWindow().setSize(new LogicalSize(ADMIN_W, ADMIN_H));
+    const win = getCurrentWindow();
+    await win.setSize(new LogicalSize(ADMIN_W, ADMIN_H));
+    await win.center();
   } catch (e) {
     console.warn("admin resize failed:", e);
   }
