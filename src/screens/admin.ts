@@ -1,5 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { LogicalSize } from "@tauri-apps/api/dpi";
+import { LogicalSize, LogicalPosition } from "@tauri-apps/api/dpi";
 import { api, Entry, ExtraField } from "../api.ts";
 import { showScreen } from "../router.ts";
 import { showConflictDialog } from "../conflict.ts";
@@ -24,10 +24,7 @@ export function initAdminScreen(): void {
     ?.addEventListener("click", () => {
       if (!isMobile()) {
         const titleBarH = /macintosh|mac os x/i.test(navigator.userAgent) ? 28 : 0;
-        const win = getCurrentWindow();
-        win.setSize(new LogicalSize(480, 56 + titleBarH))
-          .then(() => win.center())
-          .catch(() => {});
+        centerWindow(480, 56 + titleBarH).catch(() => {});
       }
       showScreen("search");
     });
@@ -53,12 +50,18 @@ function isMobile(): boolean {
   return /android/i.test(navigator.userAgent);
 }
 
+async function centerWindow(w: number, h: number): Promise<void> {
+  const win = getCurrentWindow();
+  await win.setSize(new LogicalSize(w, h));
+  const x = Math.max(0, (window.screen.availWidth  - w) / 2);
+  const y = Math.max(0, (window.screen.availHeight - h) / 2);
+  await win.setPosition(new LogicalPosition(x, y));
+}
+
 async function resizeForAdmin(): Promise<void> {
   if (isMobile()) return;
   try {
-    const win = getCurrentWindow();
-    await win.setSize(new LogicalSize(ADMIN_W, ADMIN_H));
-    await win.center();
+    await centerWindow(ADMIN_W, ADMIN_H);
   } catch (e) {
     console.warn("admin resize failed:", e);
   }
