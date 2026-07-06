@@ -53,9 +53,17 @@ function isMobile(): boolean {
 async function centerWindow(w: number, h: number): Promise<void> {
   const win = getCurrentWindow();
   await win.setSize(new LogicalSize(w, h));
-  const x = Math.max(0, (window.screen.availWidth  - w) / 2);
-  const y = Math.max(0, (window.screen.availHeight - h) / 2);
-  await win.setPosition(new LogicalPosition(x, y));
+  const monitor = await win.currentMonitor();
+  if (monitor) {
+    const sf = monitor.scaleFactor;
+    const monX = monitor.position.x / sf;
+    const monY = monitor.position.y / sf;
+    const monW = monitor.size.width  / sf;
+    const monH = monitor.size.height / sf;
+    const x = monX + (monW - w) / 2;
+    const y = monY + (monH - h) / 2;
+    await win.setPosition(new LogicalPosition(x, y));
+  }
 }
 
 async function resizeForAdmin(): Promise<void> {
