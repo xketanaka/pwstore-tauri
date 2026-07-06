@@ -190,9 +190,29 @@ pub fn set_categories(
     persist(&app, store, &state)
 }
 
+/// secret の空白・小文字を正規化する（コピペ由来の表記ゆれに対応）
+fn normalize_otp_uri(uri: &str) -> String {
+    // secret= パラメータを探して正規化
+    let key = "secret=";
+    if let Some(pos) = uri.to_lowercase().find(key) {
+        let start = pos + key.len();
+        let end = uri[start..].find('&').map(|i| start + i).unwrap_or(uri.len());
+        let raw_secret = &uri[start..end];
+        let normalized = raw_secret
+            .replace([' ', '-'], "")   // スペース・ハイフン除去
+            .replace("%20", "")        // URL エンコード済みスペース除去
+            .to_uppercase();
+        format!("{}{}{}", &uri[..start], normalized, &uri[end..])
+    } else {
+        uri.to_string()
+    }
+}
+
 #[tauri::command]
 pub fn generate_otp(otp_uri: String) -> Result<(String, u64), String> {
-    let totp = totp_rs::TOTP::from_url(&otp_uri).map_err(|e| e.to_string())?;
+    let uri = normalize_otp_uri(&otp_uri);
+    // from_url は NIST 推奨の 128bit 以上を強制するため、短い secret のURIには unchecked を使う
+    let totp = totp_rs::TOTP::from_url_unchecked(&uri).map_err(|e| e.to_string())?;
     let code = totp.generate_current().map_err(|e| e.to_string())?;
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -200,6 +220,11 @@ pub fn generate_otp(otp_uri: String) -> Result<(String, u64), String> {
         .as_secs();
     let remaining = totp.step - (secs % totp.step);
     Ok((code, remaining))
+}
+
+#[tauri::command]
+pub fn quit(app: AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]

@@ -94,10 +94,22 @@ async function handleKeydown(
     if (ev.shiftKey) {
       await copyToClipboard(entry.account);
       showStatus("アカウントをコピーしました", selectedIdx);
+    } else if (ev.altKey && entry.otp_uri) {
+      try {
+        const [code] = await api.generateOtp(entry.otp_uri);
+        await copyToClipboard(code);
+        showStatus("OTPコードをコピーしました", selectedIdx);
+        setTimeout(() => api.quit(), 1000);
+      } catch (e) {
+        console.error("OTP生成エラー:", entry.otp_uri, e);
+        showStatus("OTPの生成に失敗しました", selectedIdx);
+      }
     } else {
       await copyToClipboard(entry.password);
       showStatus("パスワードをコピーしました", selectedIdx);
-      setTimeout(() => getCurrentWindow().minimize(), 600);
+      if (!entry.otp_uri) {
+        setTimeout(() => api.quit(), 1000);
+      }
     }
   } else if (ev.key === "Escape") {
     input.value = "";

@@ -30,6 +30,7 @@ pub fn run() {
             commands::generate_otp,
             // ウィンドウ操作
             commands::resize_and_center,
+            commands::quit,
             // Google OAuth
             oauth::start_oauth,
             oauth::handle_oauth_callback,

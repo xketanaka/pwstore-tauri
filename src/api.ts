@@ -40,6 +40,7 @@ export const api = {
   setCategories:        (categories: string[])                 => invoke<void>("set_categories", { categories }),
   // ウィンドウ操作
   resizeAndCenter:      (width: number, height: number)         => invoke<void>("resize_and_center", { width, height }),
+  quit:                 ()                                      => invoke<void>("quit"),
   // Google Drive 同期
   driveDownload:        ()                                     => invoke<void>("drive_download"),
   driveSync:            ()                                     => invoke<void>("drive_sync"),
