@@ -63,6 +63,11 @@ describe("filterAndRankEntries", () => {
     expect(result).toHaveLength(0);
   });
 
+  it("両方のキーワードがサービス名にマッチ", () => {
+    const e = [makeEntry(99, "Amazon Web Service", "", "user")];
+    expect(filterAndRankEntries(e, "Amazon Service")).toHaveLength(1);
+  });
+
   it("サービス名マッチが先頭に来る", () => {
     const mixed = [
       makeEntry(10, "infra-tool", "cloud", "user"),

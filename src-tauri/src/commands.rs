@@ -202,6 +202,30 @@ pub fn generate_otp(otp_uri: String) -> Result<(String, u64), String> {
     Ok((code, remaining))
 }
 
+#[tauri::command]
+pub fn resize_and_center(app: AppHandle, width: f64, height: f64) -> Result<(), String> {
+    let window = app.get_webview_window("main").ok_or("window not found")?;
+
+    let monitor = window.current_monitor()
+        .map_err(|e| e.to_string())?
+        .ok_or("monitor not found")?;
+
+    let scale = monitor.scale_factor();
+    let screen_pos = monitor.position();
+    let screen_size = monitor.size();
+
+    // center()は古いサイズで計算されることがあるため、変更後のサイズで手動計算する
+    let phys_w = (width * scale).round() as i32;
+    let phys_h = (height * scale).round() as i32;
+    let x = screen_pos.x + (screen_size.width as i32 - phys_w) / 2;
+    let y = screen_pos.y + (screen_size.height as i32 - phys_h) / 2;
+
+    window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }))
+        .map_err(|e| e.to_string())?;
+    window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }))
+        .map_err(|e| e.to_string())
+}
+
 // ---- テスト ----
 
 #[cfg(test)]

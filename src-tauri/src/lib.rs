@@ -28,6 +28,8 @@ pub fn run() {
             commands::set_categories,
             // OTP
             commands::generate_otp,
+            // ウィンドウ操作
+            commands::resize_and_center,
             // Google OAuth
             oauth::start_oauth,
             oauth::handle_oauth_callback,
