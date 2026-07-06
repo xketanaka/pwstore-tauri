@@ -9,11 +9,13 @@ const SEARCH_W = 480;
 const SEARCH_BAR_H = 56;
 const ITEM_H = 45;
 const MAX_RESULTS_H = 380;
+// macOS はタイトルバーが setSize の高さに含まれるため加算する
+const TITLE_BAR_H = /macintosh|mac os x/i.test(navigator.userAgent) ? 28 : 0;
 
 function resizeToFit(resultCount: number): void {
-  const height = resultCount > 0
+  const height = TITLE_BAR_H + (resultCount > 0
     ? SEARCH_BAR_H + Math.min(resultCount * ITEM_H, MAX_RESULTS_H)
-    : SEARCH_BAR_H;
+    : SEARCH_BAR_H);
   getCurrentWindow().setSize(new LogicalSize(SEARCH_W, height)).catch(() => {});
 }
 

@@ -22,7 +22,10 @@ let serviceKeyword = "";
 export function initAdminScreen(): void {
   document.querySelector<HTMLButtonElement>("#admin-back-btn")
     ?.addEventListener("click", () => {
-      if (!isMobile()) getCurrentWindow().setSize(new LogicalSize(480, 56)).catch(() => {});
+      if (!isMobile()) {
+        const titleBarH = /macintosh|mac os x/i.test(navigator.userAgent) ? 28 : 0;
+        getCurrentWindow().setSize(new LogicalSize(480, 56 + titleBarH)).catch(() => {});
+      }
       showScreen("search");
     });
 
