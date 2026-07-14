@@ -2,6 +2,7 @@ import { api, Entry, ExtraField } from "../api.ts";
 import { showScreen } from "../router.ts";
 import { showConflictDialog } from "../conflict.ts";
 import { filterAndRankEntries } from "../entryFilter.ts";
+import { isInvalidGrant, triggerReauth } from "../reauth.ts";
 
 const ADMIN_W = 1010;
 const ADMIN_H = 975;
@@ -36,6 +37,9 @@ export function initAdminScreen(): void {
 
   document.querySelector<HTMLButtonElement>("#admin-drive-sync-btn")
     ?.addEventListener("click", () => handleSync());
+
+  document.querySelector<HTMLButtonElement>("#admin-reauth-btn")
+    ?.addEventListener("click", () => handleReauth());
 
   document.querySelector<HTMLInputElement>("#service-search")
     ?.addEventListener("input", (e) => {
@@ -476,17 +480,47 @@ async function doSync(): Promise<void> {
   }, 2000);
 }
 
+async function handleReauth(): Promise<void> {
+  const btn = document.querySelector<HTMLButtonElement>("#admin-reauth-btn")!;
+  btn.disabled = true;
+  showAdminStatus("ブラウザで再認証してください...");
+  try {
+    await triggerReauth();
+    showAdminStatus("再認証完了");
+    setTimeout(() => {
+      const el = document.querySelector<HTMLElement>("#admin-status")!;
+      el.hidden = true;
+    }, 2000);
+  } catch (err) {
+    showAdminStatusError(`再認証エラー: ${err}`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function handleSyncError(err: unknown): Promise<void> {
+  if (isInvalidGrant(err)) {
+    showAdminStatus("Google認証が切れました。ブラウザで再認証してください...");
+    try {
+      await triggerReauth();
+      await doSync();
+    } catch (authErr) {
+      showAdminStatusError(`再認証エラー: ${authErr}`);
+    }
+  } else if (String(err).includes("競合")) {
+    await resolveConflict();
+  } else {
+    showAdminStatusError(`同期エラー: ${err}`);
+  }
+}
+
 async function handleSync(): Promise<void> {
   const btn = document.querySelector<HTMLButtonElement>("#admin-drive-sync-btn")!;
   btn.disabled = true;
   try {
     await doSync();
   } catch (err) {
-    if (String(err).includes("競合")) {
-      await resolveConflict();
-    } else {
-      showAdminStatusError(`同期エラー: ${err}`);
-    }
+    await handleSyncError(err);
   } finally {
     btn.disabled = false;
   }
@@ -496,11 +530,7 @@ async function autoSync(): Promise<void> {
   try {
     await doSync();
   } catch (err) {
-    if (String(err).includes("競合")) {
-      await resolveConflict();
-    } else {
-      showAdminStatusError(`同期エラー: ${err}`);
-    }
+    await handleSyncError(err);
   }
 }
 
