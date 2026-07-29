@@ -24,7 +24,7 @@ npm run tauri dev   # 開発
 npm run tauri build # リリースビルド
 ```
 
-## Mac 向け Production ビルド
+## Production ビルド(for Mac)
 
 ### BUILD.1 ツールのインストール
 
@@ -79,11 +79,11 @@ Finder で右クリック →「開く」を選択するか、以下のコマン
 xattr -d com.apple.quarantine /Applications/pwstore-tauri.app
 ```
 
-## Android 向け Production ビルド
+## Production ビルド(for Android)
 
 Mac / Linux どちらでも実行できる。
 
-### ANDROID.1 前提ツールのインストール
+### Android.1 前提ツールのインストール
 
 [Android Studio](https://developer.android.com/studio) をインストールし、SDK Manager で以下を確認する：
 
@@ -107,13 +107,13 @@ export ANDROID_HOME="$HOME/Android/Sdk"
 export NDK_HOME="$ANDROID_HOME/ndk/$(ls $ANDROID_HOME/ndk | tail -1)"
 ```
 
-### ANDROID.2 Rust の Android ターゲットを追加
+### Android.2 Rust の Android ターゲットを追加
 
 ```bash
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 ```
 
-### ANDROID.3 Android プロジェクトの初期化（初回のみ）
+### Android.3 Android プロジェクトの初期化（初回のみ）
 
 ```bash
 npm run tauri android init
@@ -121,7 +121,7 @@ npm run tauri android init
 
 `src-tauri/gen/android/` が生成される。
 
-### ANDROID.4 ビルド
+### Android.4 ビルド
 
 ```bash
 npm run tauri android build
@@ -132,7 +132,7 @@ npm run tauri android build
 src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
 ```
 
-### ANDROID.5 端末へのインストール
+### Android.5 端末へのインストール
 
 Android 端末の「開発者向けオプション」で USB デバッグを有効にして接続し：
 
