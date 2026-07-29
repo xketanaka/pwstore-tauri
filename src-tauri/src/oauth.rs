@@ -163,6 +163,9 @@ pub fn start_oauth(
     let verifier = generate_code_verifier();
     let challenge = code_challenge(&verifier);
 
+    // ブラウザに遷移している間にアプリのプロセスが破棄されても
+    // コールバックを処理できるようディスクにも保存する
+    commands::save_secret(&app, "oauth_verifier", &verifier).ok();
     *oauth_state.code_verifier.lock().unwrap() = Some(verifier);
 
     let auth_url = format!(
@@ -182,18 +185,33 @@ pub fn start_oauth(
 }
 
 /// モバイル専用: deep-linkコールバックURLを処理してトークンを保存し、イベントを発行する
+///
+/// 成功時は `oauth-complete`、失敗時は必ず `oauth-error` を発行する。
+/// Android ではフロントエンドのエラー表示手段が限られるため、
+/// どの失敗パスでもイベントが飛ぶようにしておく。
 #[tauri::command]
 pub async fn handle_oauth_callback(
     app: tauri::AppHandle,
     url: String,
     oauth_state: tauri::State<'_, OAuthState>,
 ) -> Result<(), String> {
-    let parsed = url::Url::parse(&url).map_err(|e| e.to_string())?;
+    let result = oauth_callback_inner(&app, &url, &oauth_state).await;
+    match &result {
+        Ok(_) => { app.emit("oauth-complete", ()).ok(); }
+        Err(e) => { app.emit("oauth-error", e).ok(); }
+    }
+    result
+}
+
+async fn oauth_callback_inner(
+    app: &tauri::AppHandle,
+    url: &str,
+    oauth_state: &tauri::State<'_, OAuthState>,
+) -> Result<(), String> {
+    let parsed = url::Url::parse(url).map_err(|e| format!("コールバックURLの解析に失敗: {e}"))?;
 
     if let Some((_, msg)) = parsed.query_pairs().find(|(k, _)| k == "error") {
-        let err = format!("Google認証エラー: {}", msg);
-        app.emit("oauth-error", &err).ok();
-        return Err(err);
+        return Err(format!("Google認証エラー: {}", msg));
     }
 
     let code = parsed
@@ -202,11 +220,14 @@ pub async fn handle_oauth_callback(
         .map(|(_, v)| v.to_string())
         .ok_or("認証コードが見つかりません")?;
 
+    // アプリのプロセスが再起動していてもコールバックを処理できるよう、
+    // メモリ上の verifier が無ければ保存済みの値を使う
     let verifier = oauth_state
         .code_verifier
         .lock()
         .unwrap()
         .take()
+        .or_else(|| commands::load_secret(app, "oauth_verifier").ok())
         .ok_or("OAuthセッションが見つかりません。もう一度試してください。")?;
 
     let client = reqwest::Client::new();
@@ -247,21 +268,16 @@ pub async fn handle_oauth_callback(
     let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
 
     if let Some(err) = json.get("error") {
-        let msg = format!("トークン取得エラー: {}", err);
-        app.emit("oauth-error", &msg).ok();
-        return Err(msg);
+        return Err(format!("トークン取得エラー: {}", err));
     }
 
     let refresh_token = json["refresh_token"]
         .as_str()
         .ok_or("リフレッシュトークンを取得できませんでした。Google Cloudの設定を確認してください。")?;
 
-    commands::save_secret(&app, "refresh_token", refresh_token)?;
+    commands::save_secret(app, "refresh_token", refresh_token)?;
     let app_state = app.state::<commands::AppState>();
-    commands::do_unlock(&app, &app_state)?;
-
-    app.emit("oauth-complete", ()).ok();
-    Ok(())
+    commands::do_unlock(app, &app_state)
 }
 
 // ---- ユーティリティ ----
