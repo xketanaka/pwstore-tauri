@@ -1,0 +1,54 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8
+
+# ベースツール + JDK 17
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl wget unzip git \
+        build-essential pkg-config \
+        openjdk-17-jdk \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+
+# Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Rust stable + Android ターゲット
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --default-toolchain stable --no-modify-path
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup target add \
+        aarch64-linux-android \
+        armv7-linux-androideabi \
+        i686-linux-android \
+        x86_64-linux-android
+
+# Android SDK コマンドラインツール
+# 最新の URL は https://developer.android.com/studio#command-tools で確認
+ENV ANDROID_HOME=/opt/android-sdk
+RUN mkdir -p ${ANDROID_HOME}/cmdline-tools \
+    && wget -q \
+        https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
+        -O /tmp/cmdtools.zip \
+    && unzip -q /tmp/cmdtools.zip -d ${ANDROID_HOME}/cmdline-tools \
+    && mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest \
+    && rm /tmp/cmdtools.zip
+
+ENV PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${PATH}"
+
+# ライセンス承諾 + SDK / NDK インストール
+RUN yes | sdkmanager --licenses \
+    && sdkmanager \
+        "platform-tools" \
+        "platforms;android-34" \
+        "build-tools;34.0.0" \
+        "ndk;26.1.10909125"
+
+ENV NDK_HOME="${ANDROID_HOME}/ndk/26.1.10909125" \
+    ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/26.1.10909125"
+
+WORKDIR /workspace

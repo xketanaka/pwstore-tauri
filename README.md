@@ -140,6 +140,34 @@ Android 端末の「開発者向けオプション」で USB デバッグを有�
 adb install src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
 ```
 
+## Production ビルド(for Android by Docker)
+
+Dockerコンテナを使ってAndroid版のビルドを行う手順
+
+### Android.1 イメージのビルド
+
+```bash
+docker build -f Dockerfile.android -t pwstore-android-builder .
+```
+
+### Android.2 ビルド
+
+リポジトリ外の dot.env ファイルを --env-file として渡す
+
+```
+docker run --rm \
+    -v "$(pwd):/workspace" \
+    --env-file src-tauri/../pwstore-tauri-private/dot.env \
+    pwstore-android-builder \
+    bash -c "npm install && npm run tauri android build"
+```
+
+### Android. 3 成果物
+
+```
+src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+```
+
 ## テスト
 
 ### TypeScript (vitest)
