@@ -1,6 +1,6 @@
 /* ---- CSS変数 ---- */
 :root {
-  --bg: #f5f5f5;
+  --bg: #ffffff;
   --surface: #ffffff;
   --surface-hover: #f0f0f0;
   --border: #e0e0e0;
@@ -10,9 +10,10 @@
   --accent-hover: #3a5ce5;
   --danger: #e53e3e;
   --success: #38a169;
+  --highlight: #c53461;
   --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   --radius: 8px;
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Noto Sans JP", Roboto, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -54,7 +55,7 @@ body {
 
 .init-card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid #bbb;
   border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 40px 36px;
@@ -142,8 +143,8 @@ input:focus {
   border: none;
   cursor: pointer;
   color: var(--text-muted);
-  font-size: 16px;
-  padding: 6px 8px;
+  font-size: 22px;
+  padding: 3px 8px;
   border-radius: 6px;
   transition: background 0.15s, color 0.15s;
 }
@@ -198,18 +199,25 @@ input:focus {
   display: flex;
   align-items: center;
   padding: 10px 12px;
+  border-top: 1px solid transparent;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   gap: 8px;
 }
 
 .search-result-item:hover {
-  background: var(--surface-hover);
+  background: #fffff6;
 }
 
 .search-result-item.selected {
-  background: #ffe0ec;
-  color: #b5004a;
+  background: #ffeaf4;
+  color: var(--highlight);
+  border-top: solid 1px var(--highlight);
+  border-bottom: solid 1px var(--highlight);
+}
+.search-result-item.selected .btn-small {
+  background: #ffeffa;
+  border-color: #aaa;
 }
 
 .result-service {
@@ -234,18 +242,19 @@ input:focus {
 }
 
 .btn-small {
-  background: var(--surface-hover);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 2px 8px;
+  background: #fff;
+  border: solid 0.8px #999;
+  border-radius: 2px;
+  padding: 4px 6px;
   font-size: 11px;
   cursor: pointer;
-  color: var(--text);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
-.btn-small:hover { border-color: var(--accent); color: var(--accent); }
-.btn-small:disabled:hover { border-color: var(--border); color: inherit; cursor: default; }
+.btn-small:hover { border-color: var(--highlight) !important; color: var(--highlight); }
+.btn-small:disabled { border-color: var(--surface-hover) !important; color: var(--border); }
+.btn-small:disabled:hover { cursor: not-allowed; }
 
 .search-status {
   position: absolute;
@@ -253,8 +262,8 @@ input:focus {
   right: 0;
   padding: 4px 12px;
   font-size: 12px;
-  color: var(--success);
-  background: var(--surface);
+  color: var(--highlight);
+  background: #fffff3;
   text-align: center;
   border-bottom: 1px solid var(--border);
   z-index: 10;
@@ -346,11 +355,11 @@ input:focus {
   padding: 8px 12px;
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--highlight);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: #f3f3f3;
 }
 
 .pane-list {
@@ -425,6 +434,7 @@ input:focus {
   padding: 20px;
   overflow-y: auto;
   height: 100%;
+  background-color: #fdf4f9;
 }
 
 .placeholder-text {
