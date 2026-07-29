@@ -12,7 +12,7 @@ pub const GOOGLE_CLIENT_SECRET: &str = env!("GOOGLE_CLIENT_SECRET");
 
 // Android 専用クライアント（client_secret 不要、PKCE で認証）
 #[cfg(mobile)]
-const GOOGLE_CLIENT_ID_ANDROID: &str = env!("GOOGLE_CLIENT_ID_ANDROID");
+pub const GOOGLE_CLIENT_ID_ANDROID: &str = env!("GOOGLE_CLIENT_ID_ANDROID");
 
 /// Android クライアント ID からリダイレクト URI を生成する
 /// "xxxxx.apps.googleusercontent.com" → "com.googleusercontent.apps.xxxxx:/oauth2redirect"

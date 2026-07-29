@@ -123,6 +123,22 @@ async fn refresh_access_token(app: &AppHandle) -> Result<String, String> {
     let refresh_token = oauth::get_refresh_token(app)?;
 
     let client = reqwest::Client::new();
+
+    // リフレッシュトークンを発行したクライアントと同じ資格情報で更新する必要がある。
+    // 資格情報が食い違うと unauthorized_client になる
+    #[cfg(mobile)]
+    let res = client
+        .post(GOOGLE_TOKEN_URL)
+        .form(&[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token.as_str()),
+            ("client_id", oauth::GOOGLE_CLIENT_ID_ANDROID),
+        ])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    #[cfg(not(mobile))]
     let res = client
         .post(GOOGLE_TOKEN_URL)
         .form(&[

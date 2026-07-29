@@ -180,6 +180,11 @@ input:focus {
   border-bottom: 1px solid var(--border);
 }
 
+/* モバイルは画面最上部だと入力しづらいので上に余白を足す */
+.mobile .search-bar {
+  padding-top: 38px;
+}
+
 .search-bar input {
   flex: 1;
   padding: 8px 12px;

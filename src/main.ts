@@ -74,6 +74,12 @@ async function handleOauthDeepLink(url: string): Promise<void> {
   }
 }
 
+// モバイルはノッチやステータスバーに近く操作しづらいため
+// CSS 側で余白を調整できるようにクラスを付ける
+if (/android|iphone|ipad/i.test(navigator.userAgent)) {
+  document.documentElement.classList.add("mobile");
+}
+
 window.addEventListener("DOMContentLoaded", async () => {
   initInitScreen();
   initSearchScreen();

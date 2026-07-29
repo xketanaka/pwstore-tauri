@@ -202,7 +202,10 @@ async function copyToClipboard(text: string): Promise<void> {
 function showStatus(msg: string, idx: number): void {
   let topPx: number;
   if (idx === 0) {
-    topPx = SEARCH_BAR_H / 2;
+    // テキストフィールドの下半分に出す。モバイルの上余白にも追従させるため
+    // 定数ではなく実際の位置から求める
+    const input = document.querySelector<HTMLElement>("#search-input")!;
+    topPx = input.offsetTop + input.offsetHeight / 2;
   } else {
     const list = document.querySelector<HTMLElement>("#search-results")!;
     const prev = document.querySelectorAll<HTMLElement>(".search-result-item")[idx - 1];
