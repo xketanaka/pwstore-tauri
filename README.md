@@ -79,67 +79,6 @@ Finder で右クリック →「開く」を選択するか、以下のコマン
 xattr -d com.apple.quarantine /Applications/pwstore-tauri.app
 ```
 
-## Production ビルド(for Android)
-
-Mac / Linux どちらでも実行できる。
-
-### Android.1 前提ツールのインストール
-
-[Android Studio](https://developer.android.com/studio) をインストールし、SDK Manager で以下を確認する：
-
-- Android SDK（API 24 以上）
-- Android NDK
-- Android SDK Command-line Tools
-
-**環境変数を設定**（`~/.zshrc` や `~/.bashrc` に追記）：
-
-Mac:
-```bash
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-export ANDROID_HOME="$HOME/Library/Android/sdk"
-export NDK_HOME="$ANDROID_HOME/ndk/$(ls $ANDROID_HOME/ndk | tail -1)"
-```
-
-Linux:
-```bash
-export JAVA_HOME="$HOME/android-studio/jbr"
-export ANDROID_HOME="$HOME/Android/Sdk"
-export NDK_HOME="$ANDROID_HOME/ndk/$(ls $ANDROID_HOME/ndk | tail -1)"
-```
-
-### Android.2 Rust の Android ターゲットを追加
-
-```bash
-rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-```
-
-### Android.3 Android プロジェクトの初期化（初回のみ）
-
-```bash
-npm run tauri android init
-```
-
-`src-tauri/gen/android/` が生成される。
-
-### Android.4 ビルド
-
-```bash
-npm run tauri android build
-```
-
-成果物：
-```
-src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
-```
-
-### Android.5 端末へのインストール
-
-Android 端末の「開発者向けオプション」で USB デバッグを有効にして接続し：
-
-```bash
-adb install src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
-```
-
 ## Production ビルド(for Android by Docker)
 
 Dockerコンテナを使ってAndroid版のビルドを行う手順
@@ -152,21 +91,31 @@ docker build -f Dockerfile.android -t pwstore-android-builder .
 
 ### Android.2 ビルド
 
-リポジトリ外の dot.env ファイルを --env-file として渡す
+リポジトリ外の dot.env ファイル、keystore ファイルを指定する
 
 ```
 docker run --rm \
     -v "$(pwd):/workspace" \
-    --env-file src-tauri/../pwstore-tauri-private/dot.env \
+    -v "../pwstore-tauri-private/pwstore-release.keystore:/keystore/pwstore-release.keystore:ro" \
+    --env-file ../pwstore-tauri-private/dot.env \
     pwstore-android-builder \
     bash -c "npm install && npm run tauri android build"
 ```
 
-### Android. 3 成果物
+### Android.3 成果物
 
 ```
 src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
 ```
+
+### Android.4 端末へのインストール
+
+Android 端末の「開発者向けオプション」で USB デバッグを有効にして接続し：
+
+```bash
+adb install path/to/app-universal-release-unsigned.apk
+```
+
 
 ## テスト
 
