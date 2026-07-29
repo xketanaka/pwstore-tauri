@@ -10,6 +10,19 @@ use crate::commands;
 pub const GOOGLE_CLIENT_ID: &str = env!("GOOGLE_CLIENT_ID");
 pub const GOOGLE_CLIENT_SECRET: &str = env!("GOOGLE_CLIENT_SECRET");
 
+// Android 専用クライアント（client_secret 不要、PKCE で認証）
+#[cfg(mobile)]
+const GOOGLE_CLIENT_ID_ANDROID: &str = env!("GOOGLE_CLIENT_ID_ANDROID");
+
+/// Android クライアント ID からリダイレクト URI を生成する
+/// "xxxxx.apps.googleusercontent.com" → "com.googleusercontent.apps.xxxxx:/oauth2redirect"
+#[cfg(mobile)]
+fn mobile_redirect_uri() -> String {
+    let hash = GOOGLE_CLIENT_ID_ANDROID
+        .trim_end_matches(".apps.googleusercontent.com");
+    format!("com.googleusercontent.apps.{}:/oauth2redirect", hash)
+}
+
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const SCOPES: &str = "https://www.googleapis.com/auth/drive";
@@ -145,7 +158,7 @@ pub fn start_oauth(
     app: tauri::AppHandle,
     oauth_state: tauri::State<'_, OAuthState>,
 ) -> Result<(), String> {
-    const MOBILE_REDIRECT_URI: &str = "pwstore://oauth/callback";
+    let redirect_uri = mobile_redirect_uri();
 
     let verifier = generate_code_verifier();
     let challenge = code_challenge(&verifier);
@@ -157,8 +170,8 @@ pub fn start_oauth(
          &scope={scope}&code_challenge={challenge}&code_challenge_method=S256\
          &access_type=offline&prompt=consent",
         url = GOOGLE_AUTH_URL,
-        client_id = urlencoding(GOOGLE_CLIENT_ID.to_string()),
-        redirect = urlencoding(MOBILE_REDIRECT_URI.to_string()),
+        client_id = urlencoding(GOOGLE_CLIENT_ID_ANDROID.to_string()),
+        redirect = urlencoding(redirect_uri),
         scope = urlencoding(SCOPES.to_string()),
         challenge = challenge,
     );
@@ -175,8 +188,6 @@ pub async fn handle_oauth_callback(
     url: String,
     oauth_state: tauri::State<'_, OAuthState>,
 ) -> Result<(), String> {
-    const MOBILE_REDIRECT_URI: &str = "pwstore://oauth/callback";
-
     let parsed = url::Url::parse(&url).map_err(|e| e.to_string())?;
 
     if let Some((_, msg)) = parsed.query_pairs().find(|(k, _)| k == "error") {
@@ -199,14 +210,34 @@ pub async fn handle_oauth_callback(
         .ok_or("OAuthセッションが見つかりません。もう一度試してください。")?;
 
     let client = reqwest::Client::new();
+
+    // Android クライアントは client_secret 不要（PKCE で認証）
+    #[cfg(mobile)]
+    let res = {
+        let redirect_uri = mobile_redirect_uri();
+        client
+            .post(GOOGLE_TOKEN_URL)
+            .form(&[
+                ("code", code.as_str()),
+                ("client_id", GOOGLE_CLIENT_ID_ANDROID),
+                ("redirect_uri", redirect_uri.as_str()),
+                ("code_verifier", verifier.as_str()),
+                ("grant_type", "authorization_code"),
+            ])
+            .send()
+            .await
+            .map_err(|e| reqwest_err_chain(&e))?
+    };
+
+    #[cfg(not(mobile))]
     let res = client
         .post(GOOGLE_TOKEN_URL)
         .form(&[
             ("code", code.as_str()),
             ("client_id", GOOGLE_CLIENT_ID),
             ("client_secret", GOOGLE_CLIENT_SECRET),
-            ("redirect_uri", MOBILE_REDIRECT_URI),
-            ("code_verifier", &verifier),
+            ("redirect_uri", "pwstore://oauth/callback"),
+            ("code_verifier", verifier.as_str()),
             ("grant_type", "authorization_code"),
         ])
         .send()
@@ -251,6 +282,7 @@ fn urlencoding(s: String) -> String {
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
 }
 
+#[cfg(desktop)]
 fn html_page(title: &str, message: &str) -> String {
     format!(
         "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>{title}</title></head>\

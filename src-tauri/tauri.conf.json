@@ -30,7 +30,7 @@
         "schemes": ["pwstore"]
       },
       "mobile": [
-        { "scheme": ["pwstore"] }
+        { "scheme": ["com.googleusercontent.apps.356184740631-md4a2s337nvc4nfclj2kekt7jjnhoc7u"] }
       ]
     }
   },

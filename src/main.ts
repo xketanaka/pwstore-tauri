@@ -1,5 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
+import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { api } from "./api.ts";
 import { showScreen } from "./router.ts";
 import { initInitScreen } from "./screens/init.ts";
@@ -25,6 +26,12 @@ function hideDriveStatus(): void {
 async function resizeTo(w: number, h: number): Promise<void> {
   try { await getCurrentWindow().setSize(new LogicalSize(w, h)); } catch {}
 }
+
+// Android: Google OAuth コールバックを deep link で受け取る
+onOpenUrl((urls) => {
+  const url = urls[0];
+  if (url) api.handleOauthCallback(url).catch(console.error);
+}).catch(console.error);
 
 window.addEventListener("DOMContentLoaded", async () => {
   initInitScreen();
